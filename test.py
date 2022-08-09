@@ -16,7 +16,7 @@ def plot_ring():
     plt.ylim(0, 5)
     # ring
     plt.plot((x_ring),(y_ring), 'ro', markersize=2)
-    xx = np.linspace(3,4, 1000)
+    xx = np.linspace(3.3, 4.3, 1000)
     def ring(x): return np.sqrt((r_ball)**2-(x-x_ring)**2) + y_ring
     rr = ring(xx)
     plt.plot(xx, rr, 'r--')
@@ -70,7 +70,7 @@ def simulate_throw(
     vx=2.18,
     r_ball=0.765/(2*np.pi),
     # board parameters
-    x_board=4.3,#525,
+    x_board=4.525,#525,
     y_lower=3.05,
     y_upper=3.95,
     # numeric parameters
@@ -96,7 +96,6 @@ def simulate_throw(
 
     # interception of the ball with 3.05m 
     x_plane = (-b - np.sign(vx) * np.sqrt(b**2-4*a*(c-y_lower))) / (2*a) # ( das - vor sign ist nötig weil a negativ ist)
-
 
     if vx > 0: # only check backboard if ball is moving to the right
         # interception of the ball with the backboard
@@ -244,7 +243,7 @@ def trefferquote(h,alpha,v0):
 # trefferquote(h=1.5, alpha=45, v0=10)
 # exit()
 # %%
-print(simulate_throw(x0=0,vy=8,vx=2.287878787878788))
+print(simulate_throw(x0=1,vy=8,vx=2.287878787878788))
 # for vx in np.linspace(2,2.5,100):
 #     print(vx, simulate_throw(vy=10,vx=vx))
     # simulate_throw(vy=10,vx=2.5)
