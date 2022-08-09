@@ -2,8 +2,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.optimize as opt
+import math
 
 def same_signs(a, b):
+    assert not math.isnan(a) and not math.isnan(b)
     return (a >= 0) == (b >= 0)
 
 def plot_ring():
@@ -97,6 +99,13 @@ def simulate_throw(
     # interception of the ball with 3.05m 
     x_plane = (-b - np.sign(vx) * np.sqrt(b**2-4*a*(c-y_lower))) / (2*a) # ( das - vor sign ist nötig weil a negativ ist)
 
+    y_throw_ring = f(x_ring)
+    if y_throw_ring < y_ring:
+        print("The ball is thrown too low")
+        plot_throw(f,x_lower=x0)
+        plt.show()
+        return x_plane    
+
     if vx > 0: # only check backboard if ball is moving to the right
         # interception of the ball with the backboard
         y_board = f(x_board-r_ball)
@@ -134,24 +143,24 @@ def simulate_throw(
     def obj(x): return f(x)-ring(x)
 
     if x_ring-r_ball < x0 < x_ring + r_ball: # if we bounced from the ring in the last recursion step
-        if vx > 0 and not same_signs(obj(x_ring + r_ball), obj(x0+eps)): # wenn die Vorzeichen die selben sind, dann gibt es keine Kollision
-            x_impact, sol = opt.brentq(obj, x0, x_ring+r_ball,full_output=True)
+        if vx > 0 and not same_signs(obj(x_ring + r_ball - eps), obj(x0+eps)): # wenn die Vorzeichen die selben sind, dann gibt es keine Kollision
+            x_impact, sol = opt.bisect(obj, x0, x_ring+r_ball,full_output=True)
             hitsring = sol.converged
-        elif vx < 0 and not same_signs(obj(x_ring-r_ball), obj(x0-eps)):
-            x_impact, sol = opt.brentq(obj, x_ring - r_ball, x0,full_output=True)
+        elif vx < 0 and not same_signs(obj(x_ring-r_ball + eps), obj(x0-eps)):
+            x_impact, sol = opt.bisect(obj, x_ring - r_ball, x0,full_output=True)
             hitsring = sol.converged
         else: # wir sind abgeprallt und kein vorzeichenwechsel=> keine kollision mit ring
             hitsring=False
     else:
-        if not same_signs(obj(x_ring - r_ball), obj(x_ring + r_ball)): # This should be the default for the first call
-            x_impact, sol = opt.brentq(obj, x_ring-r_ball, x_ring+r_ball,full_output=True)
+        if not same_signs(obj(x_ring - r_ball + eps), obj(x_ring + r_ball - eps)): # This should be the default for the first call
+            x_impact, sol = opt.bisect(obj, x_ring-r_ball, x_ring+r_ball,full_output=True)
             hitsring = sol.converged
         else: # Noch eine Fallunterscheidung für wenn man den kreis um ring zweimal schneidet
-            if vx < 0 and not same_signs(obj(x_ring + r_ball), obj(x_ring)): # wenn die Vorzeichen die selben sind, dann gibt es keine Kollision
-                x_impact, sol = opt.brentq(obj, x_ring, x_ring+r_ball,full_output=True)
+            if vx < 0 and not same_signs(obj(x_ring + r_ball - eps), obj(x_ring)): # wenn die Vorzeichen die selben sind, dann gibt es keine Kollision
+                x_impact, sol = opt.bisect(obj, x_ring, x_ring+r_ball,full_output=True)
                 hitsring = sol.converged
-            elif vx > 0 and not same_signs(obj(x_ring-r_ball), obj(x_ring)):
-                x_impact, sol = opt.brentq(obj, x_ring - r_ball, x_ring,full_output=True)
+            elif vx > 0 and not same_signs(obj(x_ring-r_ball+eps), obj(x_ring)):
+                x_impact, sol = opt.bisect(obj, x_ring - r_ball, x_ring,full_output=True)
                 hitsring = sol.converged
             else: # wir sind abgeprallt und kein vorzeichenwechsel=> keine kollision mit ring
                 hitsring=False
@@ -235,18 +244,18 @@ def trefferquote(h,alpha,v0):
     vx = np.cos(alpha)*v0
     vy = np.sin(alpha)*v0
 
-    r_ball = 0.765 + np.random.uniform(-1,1)*.015
+    circ_ball = 0.765 + np.random.uniform(-1,1)*.015
+    r_ball = circ_ball / (2*np.pi)
 
     x_plane = simulate_throw(x0=x0, y0=y0, vx=vx, vy=vy, r_ball=r_ball)
     print('x_plane = ', x_plane)
     print(check_in_basket(x_plane))
-# trefferquote(h=1.5, alpha=45, v0=10)
-# exit()
+trefferquote(h=1.5, alpha=45, v0=10)
+exit()
 # %%
-print(simulate_throw(x0=1,vy=8,vx=2.287878787878788))
-# for vx in np.linspace(2,2.5,100):
-#     print(vx, simulate_throw(vy=10,vx=vx))
-    # simulate_throw(vy=10,vx=2.5)
+# print(simulate_throw(x0=1.328,vy=8,vx=2.287878787878788))
+for vx in np.linspace(2.05,2.55,100):
+    print(vx, simulate_throw(vy=10,vx=vx))
 # %%
 
 plt.show()
