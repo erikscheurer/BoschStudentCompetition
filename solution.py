@@ -15,7 +15,7 @@ def plot_ring():
     x_ring = x_board-0.45
     y_ring = 3.05
     plt.xlim(0, 5)
-    plt.ylim(0, 5)
+    plt.ylim(0, 8)
     # ring
     plt.plot((x_ring),(y_ring), 'ro', markersize=2)
     xx = np.linspace(3.3, 4.3, 1000)
@@ -31,7 +31,7 @@ def plot_throw(f,x_lower=0,x_upper=5):
     plot_ring()
     xx = np.linspace(x_lower,x_upper, 1000)
     yy = f(xx)
-    plt.plot(xx, yy, 'b-')
+    plt.plot(xx, yy, 'b-', alpha=1.0, linewidth=1)
 
 def plot(f, ring, x_board, y_lower, y_upper, x_ring, y_ring, sol, r_ball, y_board, e, v, v_parallel, v_bounced):
     xx = np.linspace(0, 5, 1000)
@@ -98,9 +98,11 @@ def simulate_throw(
 
     # interception of the ball with 3.05m 
     x_plane = (-b - np.sign(vx) * np.sqrt(b**2-4*a*(c-y_lower))) / (2*a) # ( das - vor sign ist nötig weil a negativ ist)
+    assert x_plane is not None
 
-    y_throw_ring = f(x_ring)
-    if y_throw_ring < y_ring:
+    y_throw_ring_left = f(x_ring-r_ball)
+    y_throw_ring_right = f(x_ring+r_ball)
+    if vx > 0 and y_throw_ring_left < y_ring and y_throw_ring_right < y_ring: # check if the ball goes under the ring
         print("The ball is thrown too low")
         plot_throw(f,x_lower=x0)
         # plt.show()
@@ -124,7 +126,7 @@ def simulate_throw(
             # recursive call after hitting the backboard
             plot_throw(f, x_lower=x0, x_upper=x_board-r_ball) # plot throw until the ball hits the backboard
             vy_impact = g*(x_board-r_ball-x0)/vx + vy
-            return simulate_throw(
+            r = simulate_throw(
                 g=g,
                 x0=x_board-r_ball,
                 y0=y_board,
@@ -136,36 +138,39 @@ def simulate_throw(
                 y_upper=y_upper,
                 eps=eps
             )
+            return r
 
     
     # interception of the ball with the ring
     def ring(x): return np.sqrt(r_ball**2-(x-x_ring)**2) + y_ring
     def obj(x): return f(x)-ring(x)
+    x_spitze = -b/(2*a) # hoechster punkt der parabel
 
-    if x_ring-r_ball < x0 < x_ring + r_ball: # if we bounced from the ring in the last recursion step
-        if vx > 0 and not same_signs(obj(x_ring + r_ball - eps), obj(x0+eps)): # wenn die Vorzeichen die selben sind, dann gibt es keine Kollision
-            x_impact, sol = opt.bisect(obj, x0, x_ring+r_ball,full_output=True)
-            hitsring = sol.converged
-        elif vx < 0 and not same_signs(obj(x_ring-r_ball + eps), obj(x0-eps)):
-            x_impact, sol = opt.bisect(obj, x_ring - r_ball, x0,full_output=True)
-            hitsring = sol.converged
-        else: # wir sind abgeprallt und kein vorzeichenwechsel=> keine kollision mit ring
-            hitsring=False
-    else:
-        if not same_signs(obj(x_ring - r_ball + eps), obj(x_ring + r_ball - eps)): # This should be the default for the first call
-            x_impact, sol = opt.bisect(obj, x_ring-r_ball, x_ring+r_ball,full_output=True)
-            hitsring = sol.converged
-        else: # Noch eine Fallunterscheidung für wenn man den kreis um ring zweimal schneidet
-            if vx < 0 and not same_signs(obj(x_ring + r_ball - eps), obj(x_ring)): # wenn die Vorzeichen die selben sind, dann gibt es keine Kollision
-                x_impact, sol = opt.bisect(obj, x_ring, x_ring+r_ball,full_output=True)
+    if (vx < 0 and x_spitze > x_ring - r_ball) or (vx>0 and x_spitze < x_ring + r_ball): # only consider ball hitting the ring after highest point of parabola
+        if x_ring-r_ball < x0 < x_ring + r_ball: # if we bounced from the ring in the last recursion step
+            if vx > 0 and not same_signs(obj(x_ring + r_ball - eps), obj(x0)): # wenn die Vorzeichen die selben sind, dann gibt es keine Kollision
+                x_impact, sol = opt.bisect(obj, x0, x_ring+r_ball -eps,full_output=True)
                 hitsring = sol.converged
-            elif vx > 0 and not same_signs(obj(x_ring-r_ball+eps), obj(x_ring)):
-                x_impact, sol = opt.bisect(obj, x_ring - r_ball, x_ring,full_output=True)
+            elif vx < 0 and not same_signs(obj(x_ring-r_ball + eps), obj(x0)):
+                x_impact, sol = opt.bisect(obj, x_ring - r_ball + eps, x0,full_output=True)
                 hitsring = sol.converged
             else: # wir sind abgeprallt und kein vorzeichenwechsel=> keine kollision mit ring
                 hitsring=False
+        else:
+            if not same_signs(obj(x_ring - r_ball + eps), obj(x_ring + r_ball - eps)): # This should be the default for the first call
+                x_impact, sol = opt.bisect(obj, x_ring-r_ball+eps, x_ring+r_ball-eps, full_output=True)
+                hitsring = sol.converged
+            else: # Noch eine Fallunterscheidung für wenn man den kreis um ring zweimal schneidet
+                if vx < 0 and not same_signs(obj(x_ring + r_ball - eps), obj(x_ring)): # wenn die Vorzeichen die selben sind, dann gibt es keine Kollision
+                    x_impact, sol = opt.bisect(obj, x_ring, x_ring+r_ball - eps,full_output=True)
+                    hitsring = sol.converged
+                elif vx > 0 and not same_signs(obj(x_ring-r_ball+eps), obj(x_ring)):
+                    x_impact, sol = opt.bisect(obj, x_ring - r_ball + eps, x_ring,full_output=True)
+                    hitsring = sol.converged
+                else: # wir sind abgeprallt und kein vorzeichenwechsel=> keine kollision mit ring
+                    hitsring=False
     
-    if hitsring:
+    if hitsring and ((vx>0 and x_impact > x_spitze) or (vx<0 and x_impact < x_spitze)): # if the ball hits the ring after the highest point of the parabola
         print('The ball hits the ring')
         # x_impact = sol.x[0]
         y_impact = f(x_impact)
@@ -185,6 +190,9 @@ def simulate_throw(
         # elastic collision
         v_bounced = v - 2*v_parallel
         # print('bounced v: ', v_bounced)
+
+        # move ball away from ring a bit to avoid infinite recursion
+        x_impact -= eps*e[0]
 
         # plot(f, ring, x_board, y_lower, y_upper,x_ring, y_ring, sol, r_ball, y_board, e, v, v_parallel, v_bounced)
         if vx > 0:
@@ -225,13 +233,13 @@ def simulate_throw(
                 plot_throw(f, x_lower=x0, x_upper = x_plane) 
             # plt.show()
             return x_plane
-    else:
-        raise(Exception('How did we get here'))
+    raise(Exception('How did we get here'))
 
 def check_in_basket(x_plane, x_board=4.525, ring_durchmesser=0.45):
     return x_board-ring_durchmesser<x_plane<x_board
 
 def trefferquote(h,alpha,v0,n=100):
+    hits = 0
     for i in range(n):
     
         h_rand = h + np.random.uniform(-1,1)*.15
@@ -248,15 +256,23 @@ def trefferquote(h,alpha,v0,n=100):
         r_ball = circ_ball / (2*np.pi)
 
         x_plane = simulate_throw(x0=x0, y0=y0, vx=vx, vy=vy, r_ball=r_ball)
+        print(x0, y0, vx, vy, r_ball)
         print('x_plane = ', x_plane)
-        print(check_in_basket(x_plane))
-    plt.show()
+        in_basket = check_in_basket(x_plane)
+        print(in_basket)
+        if in_basket:
+            hits += 1
+        plt.show()
+    print("trefferquote: ", hits/n)
 trefferquote(h=1.5, alpha=70, v0=9,n=100)
 exit()
-# %%
-# print(simulate_throw(x0=1.328,vy=8,vx=2.287878787878788))
-for vx in np.linspace(2.05,2.55,100):
+# %% 
+# 0.5397157485117868 1.5104108734552943 2.8928826226119035 8.095819662241084 0.12317991825296011
+print(simulate_throw(x0=0.54, y0=1.51, vy=8.096, vx=2.893, r_ball=0.123))
+plt.show()
+for vx in np.linspace(2.07,2.55,100):
     print(vx, simulate_throw(vy=10,vx=vx))
+    plt.show()
 # %%
 
 # plt.show()
