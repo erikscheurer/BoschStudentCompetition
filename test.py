@@ -103,7 +103,7 @@ def simulate_throw(
     if y_throw_ring < y_ring:
         print("The ball is thrown too low")
         plot_throw(f,x_lower=x0)
-        plt.show()
+        # plt.show()
         return x_plane    
 
     if vx > 0: # only check backboard if ball is moving to the right
@@ -112,7 +112,7 @@ def simulate_throw(
         if y_upper < y_board:
             print('The ball goes over the backboard')
             plot_throw(f,x_lower=x0) # plot throw until the ball misses the backboard
-            plt.show()
+            # plt.show()
             goesover = True
             # TODO Implement bounce on top of board
             return x_plane
@@ -214,7 +214,7 @@ def simulate_throw(
                 plot_throw(f, x_lower=x0)
             else:
                 plot_throw(f, x_upper=x0)
-            plt.show()
+            # plt.show()
             return x_plane
         elif x_plane > x_ring + r_ball:
             print('The ball goes in')
@@ -223,7 +223,7 @@ def simulate_throw(
                 plot_throw(f, x_upper=x0, x_lower = x_plane)
             else:
                 plot_throw(f, x_lower=x0, x_upper = x_plane) 
-            plt.show()
+            # plt.show()
             return x_plane
     else:
         raise(Exception('How did we get here'))
@@ -231,26 +231,27 @@ def simulate_throw(
 def check_in_basket(x_plane, x_board=4.525, ring_durchmesser=0.45):
     return x_board-ring_durchmesser<x_plane<x_board
 
-def trefferquote(h,alpha,v0):
-
+def trefferquote(h,alpha,v0,n=100):
+    for i in range(n):
     
-    h += np.random.uniform(-1,1)*.15
-    alpha += np.random.uniform(-1, 1)*5
-    alpha = np.deg2rad(alpha)
-    v0 += np.random.uniform(-1,1)*.05*v0
+        h_rand = h + np.random.uniform(-1,1)*.15
+        alpha_rand = alpha + np.random.uniform(-1, 1)*5
+        alpha_rand = np.deg2rad(alpha_rand)
+        v0_rand = (1+np.random.uniform(-1,1)*.05)*v0
 
-    x0 = np.cos(alpha)*h
-    y0 = np.sin(alpha)*h
-    vx = np.cos(alpha)*v0
-    vy = np.sin(alpha)*v0
+        x0 = np.cos(alpha_rand)*h_rand
+        y0 = np.sin(alpha_rand)*h_rand
+        vx = np.cos(alpha_rand)*v0_rand
+        vy = np.sin(alpha_rand)*v0_rand
 
-    circ_ball = 0.765 + np.random.uniform(-1,1)*.015
-    r_ball = circ_ball / (2*np.pi)
+        circ_ball = 0.765 + np.random.uniform(-1,1)*.015
+        r_ball = circ_ball / (2*np.pi)
 
-    x_plane = simulate_throw(x0=x0, y0=y0, vx=vx, vy=vy, r_ball=r_ball)
-    print('x_plane = ', x_plane)
-    print(check_in_basket(x_plane))
-trefferquote(h=1.5, alpha=45, v0=10)
+        x_plane = simulate_throw(x0=x0, y0=y0, vx=vx, vy=vy, r_ball=r_ball)
+        print('x_plane = ', x_plane)
+        print(check_in_basket(x_plane))
+    plt.show()
+trefferquote(h=1.5, alpha=70, v0=9,n=100)
 exit()
 # %%
 # print(simulate_throw(x0=1.328,vy=8,vx=2.287878787878788))
@@ -258,4 +259,4 @@ for vx in np.linspace(2.05,2.55,100):
     print(vx, simulate_throw(vy=10,vx=vx))
 # %%
 
-plt.show()
+# plt.show()
