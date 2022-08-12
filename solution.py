@@ -90,6 +90,109 @@ def get_ring_collision(ring_left,ring_right,objective,vx,eps=1e-8):
     else:
         return False
 
+def throw_under_ring(f, x_ring, y_ring, r_ball, vx):
+    y_throw_ring_left = f(x_ring-r_ball)
+    y_throw_ring_right = f(x_ring+r_ball)
+    return vx > 0 and y_throw_ring_left < y_ring and y_throw_ring_right < y_ring
+
+def check_backboard(f, g, x0, vx, vy, x_board, r_ball, y_lower, y_upper, eps, x_plane):
+    r = None
+    goesover = False
+    goesunder = False
+    if vx > 0: # only check backboard if ball is moving to the right
+        # interception of the ball with the backboard
+        y_impact_board = f(x_board-r_ball)
+        if y_upper < y_impact_board:
+            print('The ball goes over the backboard')
+            plot_throw(f,x_lower=x0) # plot throw until the ball misses the backboard
+            # plt.show()
+            goesover = True
+            # TODO Implement bounce on top of board
+        elif y_lower > y_impact_board:
+            # print('The ball goes under the backboard')
+            goesunder = True
+        else: # Cant hit backboard with negative x velocity
+            print('The ball hits the backboard')
+            # recursive call after hitting the backboard
+            plot_throw(f, x_lower=x0, x_upper=x_board-r_ball) # plot throw until the ball hits the backboard
+            vy_impact_board = g*(x_board-r_ball-x0)/vx + vy
+            r = simulate_throw(
+                g=g,
+                x0=x_board-r_ball,
+                y0=y_impact_board,
+                vx=-vx,
+                vy=vy_impact_board,
+                r_ball=r_ball,
+                x_board=x_board,
+                y_lower=y_lower,
+                y_upper=y_upper,
+                eps=eps
+            )
+    if goesover:
+        return goesover, goesunder, x_plane
+    else:
+        return goesover, goesunder, r
+
+def check_ring_collision(f, x0, vx, x_ring, y_ring, r_ball):
+    def ring(x): return np.sqrt(r_ball**2-(x-x_ring)**2) + y_ring
+    def obj(x): return f(x)-ring(x)
+    # x_spitze = -b/(2*a) # hoechster punkt der parabel
+
+    if x_ring-r_ball < x0 < x_ring + r_ball: # if we bounced from the ring in the last recursion step
+        if vx > 0: # we bounced to the right
+            x_impact = get_ring_collision(x0,x_ring+r_ball,obj,vx)
+            hitsring = bool(x_impact) # if return value is a number, hitsring is true
+        else:# vx < 0, we bounced to the left
+            # x_impact, sol = opt.bisect(obj, x_ring - r_ball + eps, x0,full_output=True)
+            x_impact = get_ring_collision(x_ring-r_ball,x0,obj,vx)
+            hitsring = bool(x_impact)
+    else:
+        x_impact = get_ring_collision(x_ring-r_ball,x_ring+r_ball,obj,vx)
+        hitsring = bool(x_impact)
+
+    return hitsring, x_impact
+
+def ring_bounce(f, g, x0, y0, vx, vy, r_ball, x_board, y_lower, y_upper, eps, x_impact, x_ring, y_ring):
+    y_impact = f(x_impact)
+
+    e = np.array((x_ring-x_impact, y_ring-y_impact))
+    e /= np.linalg.norm(e)
+    # print('e = ', e)
+
+    # vertical speed at impact
+    vy_impact_board = g*(x_impact-x0)/vx + vy
+    v = np.array((vx, vy_impact_board))
+    # print('impact v: ', v)
+
+    # velocity parallel to normed vector e
+    v_parallel = np.dot(v, e)*e
+    # print('parallel v: ', v_parallel)
+    # elastic collision
+    v_bounced = v - 2*v_parallel
+    # print('bounced v: ', v_bounced)
+
+    # move ball away from ring a bit to avoid infinite recursion
+    x_impact -= eps*e[0]
+
+    # plot(f, ring, x_board, y_lower, y_upper,x_ring, y_ring, sol, r_ball, y_board, e, v, v_parallel, v_bounced)
+    if vx > 0:
+        plot_throw(f,x_upper=x_impact, x_lower=x0)
+    else:
+        plot_throw(f,x_lower=x_impact, x_upper=x0)
+    # recursive call after hitting the ring
+    return simulate_throw(
+        g=g,
+        x0=x_impact,
+        y0=y_impact,
+        vx=v_bounced[0],
+        vy=v_bounced[1],
+        r_ball=r_ball,
+        x_board=x_board,
+        y_lower=y_lower,
+        y_upper=y_upper,
+        eps=eps
+    )
+
 def simulate_throw(
     prev_throw='original',
     # general
@@ -129,112 +232,26 @@ def simulate_throw(
     x_plane = (-b - np.sign(vx) * np.sqrt(b**2-4*a*(c-y_lower))) / (2*a) # ( das - vor sign ist nötig weil a negativ ist)
     assert x_plane is not None
 
-    y_throw_ring_left = f(x_ring-r_ball)
-    y_throw_ring_right = f(x_ring+r_ball)
-    if vx > 0 and y_throw_ring_left < y_ring and y_throw_ring_right < y_ring: # check if the ball goes under the ring
+    if throw_under_ring(f, x_ring, y_ring, r_ball, vx): # if the ball is under the ring, we can't hit anything
         print("The ball is thrown too low")
         plot_throw(f,x_lower=x0)
-        # plt.show()
-        return x_plane    
+        return x_plane
 
-    if vx > 0: # only check backboard if ball is moving to the right
-        # interception of the ball with the backboard
-        y_impact_board = f(x_board-r_ball)
-        if y_upper < y_impact_board:
-            print('The ball goes over the backboard')
-            plot_throw(f,x_lower=x0) # plot throw until the ball misses the backboard
-            # plt.show()
-            goesover = True
-            # TODO Implement bounce on top of board
-            return x_plane
-        elif y_lower > y_impact_board:
-            # print('The ball goes under the backboard')
-            goesunder = True
-        else: # Cant hit backboard with negative x velocity
-            print('The ball hits the backboard')
-            # recursive call after hitting the backboard
-            plot_throw(f, x_lower=x0, x_upper=x_board-r_ball) # plot throw until the ball hits the backboard
-            vy_impact_board = g*(x_board-r_ball-x0)/vx + vy
-            r = simulate_throw(
-                g=g,
-                x0=x_board-r_ball,
-                y0=y_impact_board,
-                vy=vy_impact_board,
-                vx=-vx,
-                r_ball=r_ball,
-                x_board=x_board,
-                y_lower=y_lower,
-                y_upper=y_upper,
-                eps=eps
-            )
-            return r
+    # check if the ball hits the backboard, goes over it, or goes under it
+    goesover, goesunder, r = check_backboard(f, g, x0, vx, vy, x_board, r_ball, y_lower, y_upper, eps, x_plane)
+    if r is not None: # if ball hits, return result from recursive call, else return x_plane if the ball goes over the backboard
+        return r
 
     
-    # interception of the ball with the ring
-    def ring(x): return np.sqrt(r_ball**2-(x-x_ring)**2) + y_ring
-    def obj(x): return f(x)-ring(x)
-    x_spitze = -b/(2*a) # hoechster punkt der parabel
-
-    # if (vx < 0 and x_spitze > x_ring - r_ball) or (vx>0 and x_spitze < x_ring + r_ball): # only consider ball hitting the ring after highest point of parabola
-    if x_ring-r_ball < x0 < x_ring + r_ball: # if we bounced from the ring in the last recursion step
-        if vx > 0: # we bounced to the right
-            x_impact = get_ring_collision(x0,x_ring+r_ball,obj,vx)
-            hitsring = bool(x_impact) # if return value is a number, hitsring is true
-        else:# vx < 0, we bounced to the left
-            # x_impact, sol = opt.bisect(obj, x_ring - r_ball + eps, x0,full_output=True)
-            x_impact = get_ring_collision(x_ring-r_ball,x0,obj,vx)
-            hitsring = bool(x_impact)
-    else:
-        x_impact = get_ring_collision(x_ring-r_ball,x_ring+r_ball,obj,vx)
-        hitsring = bool(x_impact)
-
+    # interception of the ball with the ring needs to be checked, as ball goes under the backboard or moves left
+    hitsring, x_impact = check_ring_collision(f, x0, vx, x_ring, y_ring, r_ball)
     if hitsring:
         print('The ball hits the ring')
-        # x_impact = sol.x[0]
-        y_impact = f(x_impact)
-
-        e = np.array((x_ring-x_impact, y_ring-y_impact))
-        e /= np.linalg.norm(e)
-        # print('e = ', e)
-
-        # vertical speed at impact
-        vy_impact_board = g*(x_impact-x0)/vx + vy
-        v = np.array((vx, vy_impact_board))
-        # print('impact v: ', v)
-
-        # velocity parallel to normed vector e
-        v_parallel = np.dot(v, e)*e
-        # print('parallel v: ', v_parallel)
-        # elastic collision
-        v_bounced = v - 2*v_parallel
-        # print('bounced v: ', v_bounced)
-
-        # move ball away from ring a bit to avoid infinite recursion
-        x_impact -= eps*e[0]
-
-        # plot(f, ring, x_board, y_lower, y_upper,x_ring, y_ring, sol, r_ball, y_board, e, v, v_parallel, v_bounced)
-        if vx > 0:
-            plot_throw(f,x_upper=x_impact, x_lower=x0)
-        else:
-            plot_throw(f,x_lower=x_impact, x_upper=x0)
-        # recursive call after hitting the ring
-        return simulate_throw(
-            g=g,
-            x0=x_impact,
-            y0=y_impact,
-            vx=v_bounced[0],
-            vy=v_bounced[1],
-            r_ball=r_ball,
-            x_board=x_board,
-            y_lower=y_lower,
-            y_upper=y_upper,
-            eps=eps
-        )
+        return ring_bounce(f, g, x0, y0, vx, vy, r_ball, x_board, y_lower, y_upper, eps, x_impact, x_ring, y_ring)
 
     # else:
-    
     if goesunder or vx < 0:
-        if x_plane < x_ring - r_ball:
+        if x_plane < x_ring - r_ball: # check for airball
             print('AIRBALL')
             if vx > 0:
                 plot_throw(f, x_lower=x0)
@@ -242,9 +259,9 @@ def simulate_throw(
                 plot_throw(f, x_upper=x0)
             # plt.show()
             return x_plane
-        elif x_plane > x_ring + r_ball:
+        elif x_plane > x_ring + r_ball: # check for basket
             print('The ball goes in')
-            goesin = True
+            # goesin = True
             if vx < 0:
                 plot_throw(f, x_upper=x0, x_lower = x_plane)
             else:
