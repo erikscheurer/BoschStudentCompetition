@@ -1,4 +1,5 @@
 # %%
+from typing import Callable
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.optimize as opt
@@ -64,31 +65,25 @@ def plot(f, ring, x_board, y_lower, y_upper, x_ring, y_ring, sol, r_ball, y_boar
 
 
 
-def get_ring_collision(ring_left,ring_right,objective,vx,eps=1e-8):
-    ring_left+=eps
+def get_ring_collision(ring_left:float, ring_right:float, objective:Callable[[float],float], vx:float, eps=1e-8, intervals=10)->float:
+    ring_left+=eps # for numeric stability
     ring_right-=eps
 
     if vx<0: # if we move left, check right first, then left since the ball is coming from the right
         ring_left,ring_right = ring_right,ring_left
 
-    # need the midpoints if we have a ball crossing the ring twice
-    ring_midleft=(2*ring_left/3+ring_right/3)
-    ring_midright=(ring_left/3+2*ring_right/3)
-    y_left = objective(ring_left)
-    y_right = objective(ring_right)
-    y_midleft = objective(ring_midleft)
-    y_midright = objective(ring_midright)
-    assert not( y_left!=y_left or y_right!=y_right or y_midleft!=y_midleft or y_midright!=y_midright)
-
-
-    if y_midleft*y_left<0:
-        return opt.brentq(objective, min(ring_left, ring_midleft), max(ring_left, ring_midleft)) # min and max is necessary if vx<0
-    elif y_midleft*y_midright<0:
-        return opt.brentq(objective, min(ring_midleft, ring_midright), max(ring_midleft, ring_midright))
-    elif y_midright*y_right<0:
-        return opt.brentq(objective, min(ring_midright, ring_right), max(ring_midright, ring_right))
-    else:
-        return False
+    # we need the midpoints if we have a ball crossing the ring twice. The ring is split into {intervals} pieces and we check for a sign change in each of them
+    # we start in the direction the ball is moving.
+    prev_right = None # to save one evaluation
+    for i in range(intervals+1):
+        curr_left= ((intervals-i)*ring_left+i*ring_right) / intervals
+        curr_right= ((intervals-i-1)*ring_left+(i+1)*ring_right) / intervals
+        y_left = prev_right or objective(curr_left) # if we have prev_right, then we have already evaluated the left side
+        y_right = objective(curr_right)
+        if y_left*y_right<0:
+            return opt.brentq(objective, min(curr_left, curr_right), max(curr_left, curr_right)) # min and max is necessary if vx<0
+        prev_right = y_right
+    return False
 
 def throw_under_ring(f, x_ring, y_ring, r_ball, vx):
     y_throw_ring_left = f(x_ring-r_ball)
@@ -307,12 +302,13 @@ def trefferquote(h,alpha,v0,n=100):
 trefferquote(h=1.5, alpha=60, v0=7.5,n=500)
 exit()
 # %% 
-x0,y0,vx,vy,r_ball = 0.8245113027906533, 1.2291725041346921, 4.117618969438045, 6.138501682883233, 0.11970630560205907
-print(simulate_throw(x0=x0, y0=y0, vy=vy, vx=vx, r_ball=r_ball))
+# x0,y0,vx,vy,r_ball = 0.8245113027906533, 1.2291725041346921, 4.117618969438045, 6.138501682883233, 0.11970630560205907
+# print(simulate_throw(x0=x0, y0=y0, vy=vy, vx=vx, r_ball=r_ball))
+print(simulate_throw(vy=7, vx=3.353535353))
 plt.show()
-# for vx in np.linspace(2.07,2.55,100):
-#     print(vx, simulate_throw(vy=10,vx=vx))
-#     plt.show()
+for vx in np.linspace(3.3,4,100):
+    print(vx, simulate_throw(vy=7,vx=vx))
+    plt.show()
 # # %%
 
-# plt.show()
+plt.show()
