@@ -1,5 +1,6 @@
 # %%
 from cmath import sqrt
+from multiprocessing import Pool, freeze_support
 from typing import Callable
 import numpy as np
 import matplotlib.pyplot as plt
@@ -102,7 +103,7 @@ def check_backboard(f, g, x0, vx, vy, x_board, r_ball, y_lower, y_upper, eps, x_
         if y_upper < y_impact_board:
             if output:
                 print('The ball goes over the backboard')
-            plot_throw(f,x_lower=x0) # plot throw until the ball misses the backboard
+                plot_throw(f,x_lower=x0) # plot throw until the ball misses the backboard
             # plt.show()
             goesover = True
             # TODO Implement bounce on top of board
@@ -112,8 +113,8 @@ def check_backboard(f, g, x0, vx, vy, x_board, r_ball, y_lower, y_upper, eps, x_
         else: # Cant hit backboard with negative x velocity
             if output:
                 print('The ball hits the backboard')
+                plot_throw(f, x_lower=x0, x_upper=x_board-r_ball) # plot throw until the ball hits the backboard
             # recursive call after hitting the backboard
-            plot_throw(f, x_lower=x0, x_upper=x_board-r_ball) # plot throw until the ball hits the backboard
             vy_impact_board = g*(x_board-r_ball-x0)/vx + vy
             r = simulate_throw(
                 g=g,
@@ -177,10 +178,11 @@ def ring_bounce(f, g, x0, y0, vx, vy, r_ball, x_board, y_lower, y_upper, eps, x_
     x_impact -= eps*e[0]
 
     # plot(f, ring, x_board, y_lower, y_upper,x_ring, y_ring, sol, r_ball, y_board, e, v, v_parallel, v_bounced)
-    if vx > 0:
-        plot_throw(f,x_upper=x_impact, x_lower=x0)
-    else:
-        plot_throw(f,x_lower=x_impact, x_upper=x0)
+    if output:
+        if vx > 0:
+            plot_throw(f,x_upper=x_impact, x_lower=x0)
+        else:
+            plot_throw(f,x_lower=x_impact, x_upper=x0)
     # recursive call after hitting the ring
     return simulate_throw(
         g=g,
@@ -241,7 +243,7 @@ def simulate_throw(
     if sqrt_part < 0 and y_spitze < y_lower:
         if output:
             print("The ball is thrown too low")
-        plot_throw(f,x_lower=x0)
+            plot_throw(f,x_lower=x0)
         return x0 # return x0 instead of x_plane as ball never hits plane
     x_plane = (-b - np.sign(vx) * np.sqrt(sqrt_part)) / (2*a) # ( das - vor sign ist nötig weil a negativ ist)
     assert x_plane is not None
@@ -250,7 +252,7 @@ def simulate_throw(
         if throw_under_ring(f, x_ring, y_ring, r_ball, vx): # if the ball is under the ring, we can't hit anything
             if output:
                 print("The ball is thrown too low")
-            plot_throw(f,x_lower=x0)
+                plot_throw(f,x_lower=x0)
             return x_plane
 
     # check if the ball hits the backboard, goes over it, or goes under it
@@ -270,33 +272,37 @@ def simulate_throw(
         if x_plane < x_ring - r_ball: # check for airball
             if output:
                 print('AIRBALL')
-            if vx > 0:
-                plot_throw(f, x_lower=x0)
-            else:
-                plot_throw(f, x_upper=x0)
+                if vx > 0:
+                    plot_throw(f, x_lower=x0)
+                else:
+                    plot_throw(f, x_upper=x0)
             # plt.show()
             return x_plane
         elif x_plane > x_ring + r_ball: # check for basket
             if output:
                 print('The ball goes in')
-            # goesin = True
-            if vx < 0:
-                plot_throw(f, x_upper=x0, x_lower = x_plane)
-            else:
-                plot_throw(f, x_lower=x0, x_upper = x_plane) 
+                if vx < 0:
+                    plot_throw(f, x_upper=x0, x_lower = x_plane)
+                else:
+                    plot_throw(f, x_lower=x0, x_upper = x_plane) 
             # plt.show()
             return x_plane
     
-    plot_throw(f)
-    plt.title("wtf happened")
-    plt.show()
-    raise(Exception('How did we get here'))
+    # plot_throw(f)
+    print("wtf happened")
+    # plt.show()
+    return 0
+    # raise(Exception('How did we get here'))
 
 def check_in_basket(x_plane, x_board=4.525, ring_durchmesser=0.45):
     a = x_board - ring_durchmesser < x_plane
     b = x_plane < x_board
     c = np.logical_and(a, b)
     return c.astype(int)
+
+def mapfunc(x0, y0, vx, vy, r_ball,output):
+    return simulate_throw(x0=x0, y0=y0, vx=vx, vy=vy, r_ball=r_ball, output=output)
+
 
 def trefferquote(h,alpha,v0,n=100, output=True):
     
@@ -317,40 +323,57 @@ def trefferquote(h,alpha,v0,n=100, output=True):
     circ_balls = 0.765 + np.random.uniform(-1,1, size=n)*.015
     r_balls = circ_balls / (2*np.pi)
 
-    def mapfunc(x0, y0, vx, vy, r_ball):
-        return simulate_throw(x0=x0, y0=y0, vx=vx, vy=vy, r_ball=r_ball, output=output)
-    x_planes = np.asarray(list(map(mapfunc, x0s, y0s, vxs, vys, r_balls)))
+    # with Pool(8) as p:
+    #     x_planes = p.starmap(mapfunc, zip(x0s, y0s, vxs, vys, r_balls, [output]*n))
+    # x_planes = np.asarray(x_planes)
+
+    x_planes = np.asarray(list(map(mapfunc, x0s, y0s, vxs, vys, r_balls, [output]*n)))
+
     in_baskets = check_in_basket(x_planes)
     hits = np.sum(in_baskets)
 
     if output:
         plt.show()
     print("trefferquote: ", hits/n)
+    return hits/n
 
 # %%
-start = timer()
-trefferquote(h=1.5, alpha=60, v0=7.5,n=50, output=False)
-end = timer()
-print("50", end-start)
+if __name__ == '__main__': # muss rein für multiprocessing
+    freeze_support() # das anscheinend auch (keine ahnung was das ist) 
 
-start = timer()
-trefferquote(h=1.5, alpha=60, v0=7.5,n=500, output=False)
-end = timer()
-print("500", end-start)
+    np.random.seed(10)#15) # seed 10 yields errors and maximum recursion depth errors
+    while True: # für zufällige input werte
 
-start = timer()
-trefferquote(h=1.5, alpha=60, v0=7.5, n=5000, output=False)
-end = timer()
-print("5000", end-start)
-exit()
+        # sammle quoten für verschiedene anzahlen von würfen um zu gucken wie gut wir annähern müssen
+        quoten = []
+        ns = [100, 1000, 10000, 25000, 50000, 75000, 100000, 200000]
+        h = np.random.rand()+1
+        alpha = np.random.randint(45,75)
+        v0 = (np.random.rand()*5)+5
+        print("h: ", h, "alpha: ", alpha, "v0: ", v0)
+        for n in ns:
+            start = timer()
+            quoten.append(trefferquote(h=h, alpha=alpha, v0=v0,n=n, output=False))
+            if quoten[0]<.1: # kann gut sein dass die werte ganz scheiße sind, dann neue bevor man da rechenleistung verschwendet
+                break
+            end = timer()
+            print(n, end-start)
 
+        if len(quoten)>1: # plotte verschiedene trefferquoten über anzahl der iterationen 
+            plt.show()
+            plt.plot(ns, quoten, 'o-')
+            plt.xscale('log')
+            plt.show()
 
-# %% 
-# 0.6147413602474181 1.314172781056323 3.239501812265219 6.925294735574873 0.121860690103832
-print(simulate_throw(x0 = 0.6147413602474181, y0 = 1.314172781056323, vx = 3.239501812265219, vy = 6.925294735574873, r_ball = 0.121860690103832))
-plt.show()
-# for vx in np.linspace(3.3,4,100):
-#     print(vx, simulate_throw(vy=7,vx=vx))
-#     plt.show()
-# # # %%
-# plt.show()
+    exit()
+    plt.show()
+
+    # %% 
+    # 0.6147413602474181 1.314172781056323 3.239501812265219 6.925294735574873 0.121860690103832
+    print(simulate_throw(x0 = 0.6147413602474181, y0 = 1.314172781056323, vx = 3.239501812265219, vy = 6.925294735574873, r_ball = 0.121860690103832))
+    plt.show()
+    # for vx in np.linspace(3.3,4,100):
+    #     print(vx, simulate_throw(vy=7,vx=vx))
+    #     plt.show()
+    # # # %%
+    # plt.show()
