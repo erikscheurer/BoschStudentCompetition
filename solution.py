@@ -92,20 +92,43 @@ def get_sign_change_interval(f, a, b, vx, depth=2):
 
     return None, None # if no sign change found, return original two points
 
-def get_ring_collision(ring_left:float, ring_right:float, objective:Callable[[float],float], vx:float, eps=1e-8, tol=1e-5)->float:
+def get_ring_collision(ring_left:float, ring_right:float,
+                        f:Callable[[float],float], df:Callable[[float],float], d2f:Callable[[float],float],
+                        vx:float, eps=1e-8, tol=1e-5, grad=False)->float:
     ring_left+=eps # for numeric stability
     ring_right-=eps
 
+    if grad and df is not None:
+        return get_ring_collision_grad(ring_left, ring_right, f, df, d2f, vx, eps=eps)
+    else:
+        return get_ring_collision_int(ring_left, ring_right, f, vx)
+
+def get_ring_collision_grad(a:float, b:float, f:Callable[[float],float], df:Callable[[float],float], d2f:Callable[[float],float],
+                            vx, eps=1e-8)->float:
+    a+=eps # for numeric stability
+    b-=eps
+    
+    m = (a+b)/2
+    
+    sol = opt.root_scalar(f, x0=m, method='halley', fprime=df, fprime2=d2f, options={'maxiter':550})
+    if sol.converged:
+        return sol.root if sol.root > a and sol.root < b else False
+    else:
+        if vx<0: # if we move left, check right first, then left since the ball is coming from the right
+            a, b = b, a
+        sol = opt.root_scalar(f, x0=(a+m)/2, method='halley', fprime=df, fprime2=d2f, options={'maxiter':550})
+        if sol.converged:
+            return sol.root if sol.root > min(a,b) and sol.root < max(a,b) else False
+        else:
+            return False
+
+def get_ring_collision_int(ring_left:float, ring_right:float, objective:Callable[[float],float], vx:float)->float:
     a, b = get_sign_change_interval(objective, ring_left, ring_right, vx)
     if a is None:
         return False
 
     a, b = min(a,b), max(a,b) # change interval ordering back for optimize function
     return opt.brentq(objective, a, b, maxiter=100)
-
-def get_ring_collision_grad(ring_left:float, ring_right:float, objective:Callable[[float],float], vx:float, eps=1e-8, intervals=10)->float:
-    ring_left+=eps # for numeric stability
-    ring_right-=eps
 
 def throw_under_ring(f, x_ring, y_ring, r_ball, vx, ueps=1e-3):
     y_throw_ring_left = f(x_ring-r_ball)
@@ -152,23 +175,37 @@ def check_backboard(f, g, x0, vx, vy, x_board, r_ball, y_lower, y_upper, eps, x_
     else:
         return goesover, goesunder, r
 
-def check_ring_collision(f, x0, vx, x_ring, y_ring, r_ball, eps=1e-8):
+def check_ring_collision(f, x0, vx, x_ring, y_ring, r_ball, df=None, d2f=None, eps=1e-8):
     def ring(x):
-        assert x > x_ring-r_ball and x < x_ring+r_ball
-        return np.sqrt(r_ball**2-(x-x_ring)**2) + y_ring
+        if x > x_ring-r_ball and x < x_ring+r_ball:
+            return np.sqrt(r_ball**2-(x-x_ring)**2) + y_ring
+        else:
+            return y_ring
+    def dring(x):
+        if x > x_ring-r_ball and x < x_ring+r_ball:
+            return (x-x_ring)/np.sqrt(r_ball**2-(x-x_ring)**2)
+        else:
+            return 0
+    def d2ring(x):
+        if x > x_ring-r_ball and x < x_ring+r_ball:
+            return r_ball**2/(-x_ring**2 + 2 * x_ring * x - x**2 + r_ball**2)**(3/2)
+        else:
+            return 0
     def obj(x): return f(x)-ring(x)
+    def dobj(x): return df(x)-dring(x)
+    def d2obj(x): return d2f(x)-d2ring(x)
     # x_spitze = -b/(2*a) # hoechster punkt der parabel
 
     if x_ring-r_ball + 2*eps < x0 < x_ring + r_ball - 2*eps: # if we bounced from the ring in the last recursion step
         if vx > 0: # we bounced to the right
-            x_impact = get_ring_collision(x0,x_ring+r_ball,obj,vx)
+            x_impact = get_ring_collision(x0,x_ring+r_ball,obj,dobj,d2obj,vx)
             hitsring = bool(x_impact) # if return value is a number, hitsring is true
         else:# vx < 0, we bounced to the left
             # x_impact, sol = opt.bisect(obj, x_ring - r_ball + eps, x0,full_output=True)
-            x_impact = get_ring_collision(x_ring-r_ball,x0,obj,vx)
+            x_impact = get_ring_collision(x_ring-r_ball,x0,obj,dobj,d2obj,vx)
             hitsring = bool(x_impact)
     else:
-        x_impact = get_ring_collision(x_ring-r_ball,x_ring+r_ball,obj,vx)
+        x_impact = get_ring_collision(x_ring-r_ball,x_ring+r_ball,obj,dobj,d2obj,vx)
         hitsring = bool(x_impact)
 
     return hitsring, x_impact
@@ -250,6 +287,7 @@ def simulate_throw(
     # define parabola
     def f(x): return a*x**2 + b*x + c
     def df(x): return 2*a*x + b
+    def d2f(x): return 2*a
 
     hitsring = False
     goesover = False
@@ -282,7 +320,7 @@ def simulate_throw(
         return r
     
     # interception of the ball with the ring needs to be checked, as ball goes under the backboard or moves left
-    hitsring, x_impact = check_ring_collision(f, x0, vx, x_ring, y_ring, r_ball)
+    hitsring, x_impact = check_ring_collision(f, x0, vx, x_ring, y_ring, r_ball, df=df, d2f=d2f)
     if hitsring:
         if output:
             print('The ball hits the ring')
