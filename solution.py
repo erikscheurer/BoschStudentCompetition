@@ -1,5 +1,4 @@
 # %%
-from cmath import sqrt
 from multiprocessing import Pool, freeze_support
 from typing import Callable
 import numpy as np
@@ -88,10 +87,15 @@ def get_ring_collision(ring_left:float, ring_right:float, objective:Callable[[fl
         prev_right = y_right
     return False
 
+def get_ring_collision_grad(ring_left:float, ring_right:float, objective:Callable[[float],float], vx:float, eps=1e-8, intervals=10)->float:
+    ring_left+=eps # for numeric stability
+    ring_right-=eps
+
+
+
 def throw_under_ring(f, x_ring, y_ring, r_ball, vx, ueps=1e-3):
     y_throw_ring_left = f(x_ring-r_ball)
-    y_throw_ring_right = f(x_ring+r_ball)
-    return vx > 0 and y_throw_ring_left < y_ring + ueps and y_throw_ring_right < y_ring + ueps
+    return vx > 0 and y_throw_ring_left < y_ring + ueps
 
 def check_backboard(f, g, x0, vx, vy, x_board, r_ball, y_lower, y_upper, eps, x_plane, output=True):
     r = None
@@ -214,10 +218,12 @@ def simulate_throw(
     y_upper=3.95,
     # numeric parameters
     eps=1e-8,
+    ueps=1e-3,
     output = True
 ):
     if output:
-        print('simulate_throw')
+        print('simulate_throw:')
+        print('x0 = ', x0, '    y0 = ', y0, '   vx = ', vx, '   vy = ', vy, '   r_ball = ', r_ball)
     # helper parameters for parabola
     a = g/(2*vx**2)
     b = vy/vx-g*x0/vx**2
@@ -244,12 +250,12 @@ def simulate_throw(
         if output:
             print("The ball is thrown too low")
             plot_throw(f,x_lower=x0)
-        return x0 # return x0 instead of x_plane as ball never hits plane
+        return 0 # return 0 instead of x_plane as ball never hits plane
     x_plane = (-b - np.sign(vx) * np.sqrt(sqrt_part)) / (2*a) # ( das - vor sign ist nötig weil a negativ ist)
     assert x_plane is not None
 
     if not (x_ring - r_ball < x0 < x_ring + r_ball): # check if ball starts in ring area
-        if throw_under_ring(f, x_ring, y_ring, r_ball, vx): # if the ball is under the ring, we can't hit anything
+        if throw_under_ring(f, x_ring, y_ring, r_ball, vx, ueps): # if the ball is under the ring, we can't hit anything
             if output:
                 print("The ball is thrown too low")
                 plot_throw(f,x_lower=x0)
@@ -278,7 +284,7 @@ def simulate_throw(
                     plot_throw(f, x_upper=x0)
             # plt.show()
             return x_plane
-        elif x_plane > x_ring + r_ball: # check for basket
+        elif x_plane > x_ring + r_ball - ueps: # check for basket
             if output:
                 print('The ball goes in')
                 if vx < 0:
@@ -300,7 +306,7 @@ def check_in_basket(x_plane, x_board=4.525, ring_durchmesser=0.45):
     c = np.logical_and(a, b)
     return c.astype(int)
 
-def mapfunc(x0, y0, vx, vy, r_ball,output):
+def mapfunc(x0, y0, vx, vy, r_ball, output):
     return simulate_throw(x0=x0, y0=y0, vx=vx, vy=vy, r_ball=r_ball, output=output)
 
 
@@ -341,12 +347,12 @@ def trefferquote(h,alpha,v0,n=100, output=True):
 if __name__ == '__main__': # muss rein für multiprocessing
     freeze_support() # das anscheinend auch (keine ahnung was das ist) 
 
-    np.random.seed(10)#15) # seed 10 yields errors and maximum recursion depth errors
+    np.random.seed(124587)#15) # seed 124587 yields error
     while True: # für zufällige input werte
 
         # sammle quoten für verschiedene anzahlen von würfen um zu gucken wie gut wir annähern müssen
         quoten = []
-        ns = [100, 1000, 10000, 25000, 50000, 75000, 100000, 200000]
+        ns = [100, 1000, 10000, 25000, 50000]
         h = np.random.rand()+1
         alpha = np.random.randint(45,75)
         v0 = (np.random.rand()*5)+5
