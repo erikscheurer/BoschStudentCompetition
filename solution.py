@@ -67,31 +67,45 @@ def plot(f, ring, x_board, y_lower, y_upper, x_ring, y_ring, sol, r_ball, y_boar
     plt.arrow(sol.x[0], f(sol.x[0]), v_bounced[0], v_bounced[1], color='b')
     plt.pause(10000)
 
-def get_ring_collision(ring_left:float, ring_right:float, objective:Callable[[float],float], vx:float, eps=1e-8, intervals=10)->float:
+def get_sign_change_interval(f, a, b, vx, depth=2):
+    if vx<0: # if we move left, check right first, then left since the ball is coming from the right
+        a, b = b, a
+
+    ya, yb = f(a), f(b)
+    if not same_signs(ya, yb): # if a,b have sign change, return them
+        return a, b
+
+    m = (a+b)/2 # else, insert middle point and begin iterative search
+    points = [a, m, b]
+    values = [ya, f(m), yb]
+    
+    for k in range(depth):
+        i = 1
+        while i < len(values):
+            if not same_signs(values[i-1], values[i]): # return interval if sign changes
+                return points[i-1], points[i]
+            else:
+                points.insert(i, (points[i-1]+points[i])/2) # or insert middle point as new interval boundary candidate
+                values.insert(i, f(points[i]))
+                i += 1
+            i += 1
+
+    return None, None # if no sign change found, return original two points
+
+def get_ring_collision(ring_left:float, ring_right:float, objective:Callable[[float],float], vx:float, eps=1e-8, tol=1e-5)->float:
     ring_left+=eps # for numeric stability
     ring_right-=eps
 
-    if vx<0: # if we move left, check right first, then left since the ball is coming from the right
-        ring_left,ring_right = ring_right,ring_left
+    a, b = get_sign_change_interval(objective, ring_left, ring_right, vx)
+    if a is None:
+        return False
 
-    # we need the midpoints if we have a ball crossing the ring twice. The ring is split into {intervals} pieces and we check for a sign change in each of them
-    # we start in the direction the ball is moving.
-    prev_right = None # to save one evaluation
-    for i in range(intervals):
-        curr_left= ((intervals-i)*ring_left+i*ring_right) / intervals
-        curr_right= ((intervals-i-1)*ring_left+(i+1)*ring_right) / intervals
-        y_left = prev_right or objective(curr_left) # if we have prev_right, then we have already evaluated the left side
-        y_right = objective(curr_right)
-        if y_left*y_right<0:
-            return opt.brentq(objective, min(curr_left, curr_right), max(curr_left, curr_right)) # min and max is necessary if vx<0
-        prev_right = y_right
-    return False
+    a, b = min(a,b), max(a,b) # change interval ordering back for optimize function
+    return opt.brentq(objective, a, b, maxiter=100)
 
 def get_ring_collision_grad(ring_left:float, ring_right:float, objective:Callable[[float],float], vx:float, eps=1e-8, intervals=10)->float:
     ring_left+=eps # for numeric stability
     ring_right-=eps
-
-
 
 def throw_under_ring(f, x_ring, y_ring, r_ball, vx, ueps=1e-3):
     y_throw_ring_left = f(x_ring-r_ball)
@@ -235,6 +249,7 @@ def simulate_throw(
 
     # define parabola
     def f(x): return a*x**2 + b*x + c
+    def df(x): return 2*a*x + b
 
     hitsring = False
     goesover = False
@@ -294,6 +309,14 @@ def simulate_throw(
             # plt.show()
             return x_plane
     
+    if np.abs(df(x_plane)) > 1e3:
+        def ring(x):
+            assert x > x_ring-r_ball and x < x_ring+r_ball
+            return np.sqrt(r_ball**2-(x-x_ring)**2) + y_ring
+        print("fail")
+        return 0 #TODO: figure out how to deal with very steep parabolas
+
+
     # plot_throw(f)
     print("wtf happened")
     # plt.show()
