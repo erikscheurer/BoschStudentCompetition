@@ -359,12 +359,40 @@ def trefferquote(h,alpha,v0,n=100, output=True):
 
     if output:
         plt.show()
-    print("trefferquote: ", hits/n)
+        print("trefferquote: ", hits/n)
     return hits/n
+
+def plot3d_h_alpha(v0 = 7): # fixed v0 for now
+    quoten = []
+    hs = np.linspace(1,2,25)
+    alphas = np.linspace(30,90,25)
+    n = 500  # number of simulations per combination
+    start = timer()
+    for h in hs: # für zufällige input werte
+        quoten.append([])
+        for alpha in alphas:
+            quoten[-1].append(trefferquote(h=h, alpha=alpha, v0=v0,n=n, output=False))
+
+    end = timer()
+    print("Time: ",end-start)
+
+    if len(quoten)>1: # plotte verschiedene trefferquoten über anzahl der iterationen 
+        plt.show()
+        ax = plt.axes(projection="3d")
+        hs,alphas = np.meshgrid(hs,alphas)
+        ax.plot_surface(hs, alphas, np.array(quoten).T, cmap='viridis', edgecolor='none')
+        ax.set_xlabel('h')
+        ax.set_ylabel('alpha')
+        ax.set_zlabel('trefferquote')
+        plt.show()
+
+
 
 # %%
 if __name__ == '__main__': # muss rein für multiprocessing
     freeze_support() # das anscheinend auch (keine ahnung was das ist) 
+
+    # plot3d_h_alpha(v0 = 7)
 
     np.random.seed(124587)#15) # seed 124587 yields error
     while True: # für zufällige input werte
@@ -395,8 +423,8 @@ if __name__ == '__main__': # muss rein für multiprocessing
 
     # %% 
     # 0.6147413602474181 1.314172781056323 3.239501812265219 6.925294735574873 0.121860690103832
-    print(simulate_throw(x0 = 0.6147413602474181, y0 = 1.314172781056323, vx = 3.239501812265219, vy = 6.925294735574873, r_ball = 0.121860690103832))
-    plt.show()
+    # print(simulate_throw(x0 = 0.6147413602474181, y0 = 1.314172781056323, vx = 3.239501812265219, vy = 6.925294735574873, r_ball = 0.121860690103832))
+    # plt.show()
     # for vx in np.linspace(3.3,4,100):
     #     print(vx, simulate_throw(vy=7,vx=vx))
     #     plt.show()
