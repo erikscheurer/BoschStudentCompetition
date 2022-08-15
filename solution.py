@@ -90,7 +90,7 @@ def get_sign_change_interval(f, a, b, vx, depth=2):
                 i += 1
             i += 1
 
-    return None, None # if no sign change found, return original two points
+    return None, None # if no sign change found, return None
 
 def get_ring_collision(ring_left:float, ring_right:float, objective:Callable[[float],float], vx:float, eps=1e-8, tol=1e-5)->float:
     ring_left+=eps # for numeric stability
@@ -102,10 +102,6 @@ def get_ring_collision(ring_left:float, ring_right:float, objective:Callable[[fl
 
     a, b = min(a,b), max(a,b) # change interval ordering back for optimize function
     return opt.brentq(objective, a, b, maxiter=100)
-
-def get_ring_collision_grad(ring_left:float, ring_right:float, objective:Callable[[float],float], vx:float, eps=1e-8, intervals=10)->float:
-    ring_left+=eps # for numeric stability
-    ring_right-=eps
 
 def throw_under_ring(f, x_ring, y_ring, r_ball, vx, ueps=1e-3):
     y_throw_ring_left = f(x_ring-r_ball)
