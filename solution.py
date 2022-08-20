@@ -421,8 +421,9 @@ def plot3d_h_alpha(v0=7):  # fixed v0 for now
 # %%
 if __name__ == '__main__':  # muss rein für multiprocessing
     freeze_support()  # das anscheinend auch (keine ahnung was das ist)
-
-    plot3d_h_alpha(v0=7.5)
+    simulate_throw(vy=8, vx=3)
+    plt.show()
+    #plot3d_h_alpha(v0=7.5)
     exit()
     np.random.seed(124587)  # 15) # seed 124587 yields error
     while True:  # für zufällige input werte
