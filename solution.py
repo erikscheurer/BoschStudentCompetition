@@ -188,7 +188,7 @@ def simulate_throw(
     sin_alpha = vy / v0
     cos_alpha = vx_ / v0
     c = np.arctan(np.sqrt(k/(m_ball*g))*v0*sin_alpha)
-    t2x = lambda t: m_ball/k*np.log(k*v0*cos_alpha/m_ball*t + 1)
+    t2x = lambda t: x0 + sgn * m_ball/k*np.log(k*v0*cos_alpha/m_ball*t + 1)
     x2t = lambda x: m_ball/(k*v0*cos_alpha)*(np.exp(k/m_ball*x) - 1)
     f1t = lambda t: y0 + m_ball/k*(np.log(np.cos(np.sqrt(k*g/m_ball)*t - c)) - np.log(np.cos(c)))
     f2t = lambda t: y0 + m_ball/k*(-np.log(np.cosh(np.sqrt(k*g/m_ball)*t - c)) - np.log(np.cos(c)))
@@ -202,7 +202,7 @@ def simulate_throw(
     # calculate the peak of the ball throw
     t_peak = np.sqrt(m_ball / (k*g)) * c
     t_peak = 0 if t_peak < 0 else t_peak
-    x_peak = x0 + sgn * t2x(t_peak)
+    x_peak = t2x(t_peak)
 
     # the final solution is composed of the two functions f1 (before peak) and f2 (after peak)
     f_ = lambda x: np.where(x < x_peak, f1(x), f2(x))
@@ -233,12 +233,12 @@ def simulate_throw(
     t1_plane = np.sqrt(m_ball/(g*k))*(np.arccos(np.cos(c)*np.exp((k/m_ball)*(y_lower - y0))) + c)
     t2_plane = np.sqrt(m_ball/(g*k))*(np.arccosh(np.exp(-np.log(np.cos(c))-k/m_ball*(y_lower - y0))) + c)
     #if output:
-    #    print('x_planes', x0 + sgn * t2x(t1_plane), x0 + sgn * t2x(t2_plane))
+    #    print('x_planes', t2x(t1_plane), t2x(t2_plane))
     if t1_plane is not None and t1_plane >= 0 and vx <= 0:
-        x_plane = x0 + sgn * t2x(t1_plane)
+        x_plane = t2x(t1_plane)
     else:
         if t2_plane is not None:# and t2_plane >= 0:
-            x_plane = x0 + sgn * t2x(t2_plane)
+            x_plane = t2x(t2_plane)
         else:
             try:
                 print('fallback: optimization')
@@ -256,13 +256,11 @@ def simulate_throw(
     x_floor = None
     t1_floor = np.sqrt(m_ball/(g*k))*(np.arccos(np.cos(c)*np.exp((k/m_ball)*(y_floor - y0))) + c)
     t2_floor = np.sqrt(m_ball/(g*k))*(np.arccosh(np.exp(-np.log(np.cos(c))-k/m_ball*(y_floor - y0))) + c)
-    #if output:
-    #    print('x_planes', x0 + sgn * t2x(t1_plane), x0 + sgn * t2x(t2_plane))
     if t1_floor is not None and t1_floor >= 0 and vx <= 0:
-        x_floor = x0 + sgn * t2x(t1_floor)
+        x_floor = t2x(t1_floor)
     else:
         if t2_floor is not None:
-            x_floor = x0 + sgn * t2x(t2_floor)
+            x_floor = t2x(t2_floor)
         else:
             try:
                 print('fallback: optimization')
@@ -401,9 +399,6 @@ def simulate_throw(
             return x_plane
 
     if np.abs(dy(x_plane)) > 1e3:
-        def ring(x):
-            assert x > x_ring-r_ball and x < x_ring+r_ball
-            return np.sqrt(r_ball**2-(x-x_ring)**2) + y_ring
         if output:
             print("fail")
         return 0  # TODO: figure out how to deal with very steep parabolas
@@ -439,8 +434,8 @@ def hit_rate(h, alpha, v0, n=100, output=False, plot=False):
     alphas = np.zeros(n)+alpha
     v0s = np.zeros(n)+v0
 
-    h_samples = [-1,0,1]
-    alpha_samples = np.linspace(-1,1,5)
+    #h_samples = [-1,0,1]
+    #alpha_samples = np.linspace(-1,1,5)
     h_rands = hs + 1*np.random.uniform(-1, 1, size=n)*.15
     #h_rands = hs + 1*np.random.choice(h_samples, size=n)*.15
     alpha_rands = alphas + 1*np.random.uniform(-1, 1, size=n)*5
@@ -574,13 +569,15 @@ def korbwurf(
 if __name__ == '__main__':  # muss rein für multiprocessing
     freeze_support()  # das anscheinend auch (keine ahnung was das ist)
     fig, ax = plt.subplots()
-    h, alpha, v0 = 2.0, 70, 9.224002 #9.224 # 9.2, 8.78
-    simulate_throw(y0=h, vx=v0*np.cos(np.deg2rad(alpha)), vy=v0*np.sin(np.deg2rad(alpha)), output=True, plot=True)
+    #h, alpha, v0 = 2.0, 70, 8.591243 #9.224 # 9.2, 8.78
+    #rad_alpha = np.deg2rad(alpha)
+    #simulate_throw(x0=h*np.cos(rad_alpha), y0=h*np.sin(rad_alpha), vx=v0*np.cos(rad_alpha), vy=v0*np.sin(rad_alpha), output=True, plot=True)
     #h, alpha, v0 = 2.0, 60, 7.248
     #h, alpha, v0 = 2.0, 59.6, 7.38
     #h, alpha, v0 = 2.0, 61.2, 7.40
     h, alpha, v0 = 2.0, 60.6, 7.35
     #print(korbwurf(0,0,0,0,)
+    print('hit rate for 100 samples:', hit_rate(h, alpha, v0, n=100, output=False, plot=True))
     ax.set_aspect('equal', 'box')
     ax.set(xlim=(0,5), ylim=(0,6))
     fig.tight_layout()
@@ -589,8 +586,8 @@ if __name__ == '__main__':  # muss rein für multiprocessing
     #plot3d_h_alpha(v0=7.25)
     #plot3d_v0_alpha(h=2.0)
     plt.show()
-    print('hit rate:', hit_rate(h, alpha, v0, n=10000, output=False, plot=False))
-    plt.show()
+    print('hit rate for 1000 samples:', hit_rate(h, alpha, v0, n=1000, output=False, plot=False))
+    print('hit rate for 10000 samples:', hit_rate(h, alpha, v0, n=10000, output=False, plot=False))
     exit()
     np.random.seed(124587)  # 15) # seed 124587 yields error
     while True:  # für zufällige input werte
