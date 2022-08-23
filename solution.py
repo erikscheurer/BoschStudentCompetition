@@ -170,18 +170,19 @@ def simulate_throw(
     plot = False
 ):
     if output:
-        print('simulate_throw:', 'x0 = ', x0, '    y0 = ', y0, '   vx = ', vx, '   vy = ', vy, '   r_ball = ', r_ball)
+        print(f'simulate throw: x0 = {x0:.4f}, y0 = {y0:.4f}, vx = {vx:.4f}, vy = {vy:.4f}, r_ball = {r_ball:.4f}, m_ball = {m_ball:.4f}')
     # ring parameters
     x_ring = x_board - d_ring
     y_ring = y_lower
 
-    ####################################################################################################
-    # In the following section, the analytic solution of the ball throw with air resistance is defined #
-    ####################################################################################################
+    #########################################################################
+    # 1. Define the analytic solution of the ball throw with air resistance #
+    #########################################################################
     k = 0.5 * cw * r_ball**2 * np.pi * rho
     v0 = np.sqrt(vx**2 + vy**2)
 
     # the analytic solution is only defined for vx >= 0, for vx < 0 a transformation is used
+    # TODO: proper derivation and documentation
     vx_ = np.abs(vx)
     sgn = vx / vx_
     sin_alpha = vy / v0
@@ -207,7 +208,7 @@ def simulate_throw(
     f_ = lambda x: np.where(x < x_peak, f1(x), f2(x))
     # transformation to account for vx < 0
     f = lambda x: f_(sgn * (x - x0))
-    # derivatives that are needed for the reflection
+    # derivatives that are needed for the velocity at reflection
     dy_ = lambda x: np.where(x < x_peak, dy1(x), dy2(x))
     dy = lambda x: dy_(sgn * (x - x0))
     dx = lambda x: sgn * dx_(sgn * (x - x0))
@@ -218,13 +219,16 @@ def simulate_throw(
     goesunder = False
     goesin = False
 
-    # interception of the ball with 3.05m
+    #######################################################################
+    # 2. Compute the intersection of the throw with 3.05m plane and floor #
+    #######################################################################
     if y_peak < y_lower:
         if output:
             print("The ball is thrown too low")
-            plot_throw(f, x_lower=x0)
+            plot_throw(f, x_lower=x0, x_upper=x_floor)
         return 0  # return 0 instead of x_plane as ball never hits plane
     
+    # compute intersection points with the 3.05m plane
     x_plane = None
     t1_plane = np.sqrt(m_ball/(g*k))*(np.arccos(np.cos(c)*np.exp((k/m_ball)*(y_lower - y0))) + c)
     t2_plane = np.sqrt(m_ball/(g*k))*(np.arccosh(np.exp(-np.log(np.cos(c))-k/m_ball*(y_lower - y0))) + c)
@@ -244,12 +248,33 @@ def simulate_throw(
                 if output:
                     print("The ball is thrown too low")
                 if plot:
-                    plot_throw(f, x_lower=x0)
+                    plot_throw(f, x_lower=x0, x_upper=x_floor)
                 return 0  # return 0 instead of x_plane as ball never hits plane
-    if output:
-        print('x plane:', x_plane)
+
+    # compute intersection points with the floor
+    y_floor = 0.0
+    x_floor = None
+    t1_floor = np.sqrt(m_ball/(g*k))*(np.arccos(np.cos(c)*np.exp((k/m_ball)*(y_floor - y0))) + c)
+    t2_floor = np.sqrt(m_ball/(g*k))*(np.arccosh(np.exp(-np.log(np.cos(c))-k/m_ball*(y_floor - y0))) + c)
+    #if output:
+    #    print('x_planes', x0 + sgn * t2x(t1_plane), x0 + sgn * t2x(t2_plane))
+    if t1_floor is not None and t1_floor >= 0 and vx <= 0:
+        x_floor = x0 + sgn * t2x(t1_floor)
+    else:
+        if t2_floor is not None:
+            x_floor = x0 + sgn * t2x(t2_floor)
+        else:
+            try:
+                print('fallback: optimization')
+                x_floor = opt.newton(lambda x: f(x) - y_floor, x0=(x0+3*x_ring)/4)
+            except:
+                x_floor = None
+
     assert x_plane is not None
 
+    ######################################################################
+    # 3. Check for collision of the throw with ring, backboard or basket #
+    ######################################################################
     # check if ball starts in ring area
     if not (x_ring - r_ball < x0 < x_ring + r_ball):
         # if the ball is under the ring, we can't hit anything
@@ -257,7 +282,7 @@ def simulate_throw(
             if output:
                 print("The ball is thrown too low")
             if plot:
-                plot_throw(f, x_lower=x0)
+                plot_throw(f, x_lower=x0, x_upper=x_floor)
             return x_plane
 
     # check if the ball hits the backboard, goes over it, or goes under it
@@ -272,12 +297,11 @@ def simulate_throw(
                 print('The ball goes over the backboard')
             if plot:
                 # plot throw until the ball misses the backboard
-                plot_throw(f, x_lower=x0)
+                plot_throw(f, x_lower=x0, x_upper=x_floor)
             # plt.show()
             goesover = True
             # TODO Implement bounce on top of board
         elif y_lower > y_impact_board:
-            # print('The ball goes under the backboard')
             goesunder = True
         else:  # Cant hit backboard with negative x velocity
             if output:
@@ -286,7 +310,6 @@ def simulate_throw(
                 # plot throw until the ball hits the backboard
                 plot_throw(f, x_lower=x0, x_upper=x_board-r_ball)
             # recursive call after hitting the backboard
-            vy_impact_board = g*(x_board-r_ball-x0)/vx + vy
             vy_impact_board = dy(x_board)
             vx_impact_board = dx(x_board)
             #plt.arrow(x_board-r_ball, y_impact_board, vx_impact_board, vy_impact_board, length_includes_head=True, head_width=0.08, head_length=0.00002)
@@ -316,28 +339,19 @@ def simulate_throw(
         if output:
             print('The ball hits the ring')
         y_impact = f(x_impact)
-
+        # e is the distance vector from impact location to the ring
         e = np.array((x_ring-x_impact, y_ring-y_impact))
         e /= np.linalg.norm(e)
-        # print('e = ', e)
 
-        # vertical speed at impact
-        vy_impact_board = g*(x_impact-x0)/vx + vy
-        v = np.array((vx, vy_impact_board))
+        # compute velocity at impact
         v = np.array((dx(x_impact), dy(x_impact)))
-        if output:
-            print('v:', v)
         #plt.arrow(x_impact, y_impact, v[0], v[1], length_includes_head=True, head_width=0.08, head_length=0.00002)
-        #v_bounced = -v
-        # print('impact v: ', v)
 
         # velocity parallel to normed vector e
         v_parallel = np.dot(v, e)*e
-        # print('parallel v: ', v_parallel)
         # elastic collision
+        # (Note that this is only an approximation as a real basketball would loose energy here)
         v_bounced = v - 2*v_parallel
-        # print('bounced v: ', v_bounced)
-
         # move ball away from ring a bit to avoid infinite recursion
         x_impact -= eps*e[0]
 
@@ -364,17 +378,18 @@ def simulate_throw(
         )
     # else:
     if goesunder or vx < 0:
-        if x_plane < x_ring - r_ball:  # check for airball
+        if x_plane < x_ring - r_ball:  # check for airball (i.e. ball hits nothing)
             if output:
                 print('AIRBALL')
             if plot:
                 if vx > 0:
-                    plot_throw(f, x_lower=x0)
+                    plot_throw(f, x_lower=x0, x_upper=x_floor)
                 else:
-                    plot_throw(f, x_upper=x0)
+                    plot_throw(f, x_upper=x0, x_lower=x_floor)
             # plt.show()
             return x_plane
         elif x_board - r_ball > x_plane > x_ring + r_ball - ueps:  # check for basket
+            goesin = True
             if output:
                 print('The ball goes in')
             if plot:
@@ -395,9 +410,9 @@ def simulate_throw(
 
     if plot:
         if vx > 0:
-            plot_throw(f, x_lower=x0)
+            plot_throw(f, x_lower=x0, x_upper=x_floor)
         else:
-            plot_throw(f, x_upper=x0)
+            plot_throw(f, x_upper=x0, x_lower=x_floor)
     if output:
         print("wtf happened")
     return 0
@@ -412,7 +427,10 @@ def check_in_basket(x_plane, x_board=4.525, d_ring=0.45):
 
 
 def mapfunc(x0, y0, vx, vy, r_ball, m_ball, output, plot):
-    return simulate_throw(x0=x0, y0=y0, vx=vx, vy=vy, r_ball=r_ball, m_ball=m_ball, output=output, plot=plot)
+    x_plane = simulate_throw(x0=x0, y0=y0, vx=vx, vy=vy, r_ball=r_ball, m_ball=m_ball, output=output, plot=plot)
+    if output:
+        print('-'*20)
+    return x_plane
 
 
 def hit_rate(h, alpha, v0, n=100, output=False, plot=False):
@@ -441,7 +459,7 @@ def hit_rate(h, alpha, v0, n=100, output=False, plot=False):
     m_balls = 0.609 + 1*np.random.uniform(-1, 1, size=n)*.015
 
     # with Pool(8) as p:
-    #     x_planes = p.starmap(mapfunc, zip(x0s, y0s, vxs, vys, r_balls, [output]*n))
+    #     x_planes = p.starmap(mapfunc, zip(x0s, y0s, vxs, vys, r_balls, m_balls, [output]*n, [plot]*n))
     # x_planes = np.asarray(x_planes)
 
     x_planes = np.asarray(
@@ -496,7 +514,7 @@ def plot3d_v0_alpha(h=2.0, n=500):  # fixed h for now
         plt.show()
         ax = plt.axes(projection="3d")
         hs, alphas = np.meshgrid(v0s, alphas)
-        ax.plot_surface(hs, alphas, np.array(quoten).T,
+        ax.plot_surface(hs, alphas, np.array(rates).T,
                         cmap='viridis', edgecolor='none')
         ax.set_xlabel(r'$v_0$ [m/s]')
         ax.set_ylabel(r'$\alpha$ [°]')
@@ -512,7 +530,7 @@ def plot3d_v0_alpha_fine(h=2.0, n=5000):  # fixed h for now
     for v0 in v0s:  # für zufällige input werte
         rates.append([])
         for alpha in alphas:
-            rates[-1].append(hit_rate(h=h, alpha=alpha, v0=v0, n=n, output=False))
+            rates[-1].append(hit_rate(h=h, alpha=alpha, v0=v0, n=n, output=False, plot=False))
 
     end = timer()
     print("Time: ", end-start)
@@ -521,7 +539,7 @@ def plot3d_v0_alpha_fine(h=2.0, n=5000):  # fixed h for now
         plt.show()
         ax = plt.axes(projection="3d")
         hs, alphas = np.meshgrid(v0s, alphas)
-        ax.plot_surface(hs, alphas, np.array(quoten).T,
+        ax.plot_surface(hs, alphas, np.array(rates).T,
                         cmap='viridis', edgecolor='none')
         ax.set_xlabel(r'$v_0$ [m/s]')
         ax.set_ylabel(r'$\alpha$ [°]')
@@ -529,45 +547,50 @@ def plot3d_v0_alpha_fine(h=2.0, n=5000):  # fixed h for now
         plt.show()
     print(rates)
 
+def korbwurf(
+    abweichung_wurfarmhoehe,
+    abweichung_abwurfwinkel, 
+    abweichung_beschleunigung,
+    abweichung_geschwindigkeit,
+    ballradius,
+    ballgewicht):
+    best_h = 2.0
+    best_alpha = 60.0
+    best_velocity = 0.0
+    h = best_h + abweichung_wurfarmhoehe
+    alpha = best_alpha + abweichung_abwurfwinkel
+    v0 = best_velocity + abweichung_geschwindigkeit
+    return simulate_throw(
+        r_ball = ballradius,
+        m_ball = ballgewicht,
+        y0 = h,
+        alpha = alpha,
+        vx = v0 * np.cos(np.deg2rad(alpha)),
+        vy = v0 * np.sin(np.deg2rad(alpha))
+        )
+
+
 # %%
 if __name__ == '__main__':  # muss rein für multiprocessing
     freeze_support()  # das anscheinend auch (keine ahnung was das ist)
-    #fig, ax = plt.subplots()
-    h, alpha, v0 = 4.0, -80, 8
-    h, alpha, v0 = 2.0, 70, 9.224 #9.224 # 9.2, 8.78
-    #simulate_throw(y0=2-0.15, vx=2.35)
-    #simulate_throw(y0=h+0.10, vx=v0*1.03*np.cos(np.deg2rad(alpha+3)), vy=v0*1.03*np.sin(np.deg2rad(alpha+3)))
-    #simulate_throw(y0=h, vx=v0*np.cos(np.deg2rad(alpha)), vy=v0*np.sin(np.deg2rad(alpha)), output=True, plot=True)
-    #simulate_throw(y0=h-0.10, vx=v0*0.97*np.cos(np.deg2rad(alpha-3)), vy=v0*0.97*np.sin(np.deg2rad(alpha-3)))
-    #simulate_throw(y0=3.2614575919992683, vx=-3.6432135806680366, vy=-4.8423113494926895)
-    #simulate_throw(y0=2+0.15, vx=2.35)
-    #plt.xlim([0,4.5])
-    #plt.show()
-    #h, alpha, v0 = 2.0, 70, 8.2
+    fig, ax = plt.subplots()
+    h, alpha, v0 = 2.0, 70, 9.224002 #9.224 # 9.2, 8.78
+    simulate_throw(y0=h, vx=v0*np.cos(np.deg2rad(alpha)), vy=v0*np.sin(np.deg2rad(alpha)), output=True, plot=True)
     #h, alpha, v0 = 2.0, 60, 7.248
     #h, alpha, v0 = 2.0, 59.6, 7.38
-    h, alpha, v0 = 2.0, 61.2, 7.40
+    #h, alpha, v0 = 2.0, 61.2, 7.40
     h, alpha, v0 = 2.0, 60.6, 7.35
-    print(hit_rate(h, alpha, v0, n=10000, output=False, plot=False))
-    #ax.set_aspect('equal', 'box')
-    #ax.set(xlim=(0,6), ylim=(0,6))
-    #fig.tight_layout()
+    #print(korbwurf(0,0,0,0,)
+    ax.set_aspect('equal', 'box')
+    ax.set(xlim=(0,5), ylim=(0,6))
+    fig.tight_layout()
     #plt.show()
     #plot3d_v0_alpha_fine(h=2.0)
     #plot3d_h_alpha(v0=7.25)
     #plot3d_v0_alpha(h=2.0)
     plt.show()
-    """
-    simulate_throw(y0=2-0.15, vx=2.35)
-    simulate_throw(y0=2, vx=2.35)
-    simulate_throw(y0=2+0.15, vx=2.35)
+    print('hit rate:', hit_rate(h, alpha, v0, n=10000, output=False, plot=False))
     plt.show()
-    simulate_throw(r_ball=(0.765-0.015)/(2*np.pi), vx=2.35)
-    simulate_throw(r_ball=0.765/(2*np.pi), vx=2.35)
-    simulate_throw(r_ball=(0.765+0.015)/(2*np.pi), vx=2.35)
-    plt.show()
-    #plot3d_h_alpha(v0=7.5)
-    """
     exit()
     np.random.seed(124587)  # 15) # seed 124587 yields error
     while True:  # für zufällige input werte
