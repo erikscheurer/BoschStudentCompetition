@@ -1,5 +1,5 @@
 # %%
-from solution import trefferquote
+from solution import hit_rate
 
 from scipy import optimize as opt
 from scipy.optimize import Bounds
@@ -19,7 +19,7 @@ def objective(x, n=100):
     v0 = x[2]*v0_upper
 
     print(h, alpha, v0)
-    res = 1-trefferquote(h, alpha, v0, n, False)
+    res = 1-hit_rate(h, alpha, v0, n, False)
     print(res)
     return res
 
