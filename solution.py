@@ -160,15 +160,15 @@ def simulate_throw(
     vx = 2.18, # x component of throwing velocity [m/s]
     vy = 10, # y component of throwing velocity [m/s]
     # board parameters
-    x_board = 4.525, # 525 [m]
-    y_lower = 3.05, # [m]
-    y_upper = 3.95, # [m]
+    x_board = 4.525, # x coordinate of board position [m]
+    y_lower = 3.05, # y coordinate of board position (bottom) [m]
+    y_upper = 3.95, # y coordinate of board position (top) [m]
     d_ring = 0.45, # diameter of the ring [m]
-    # numeric parameters
-    eps = 1e-8,
-    ueps = 1e-3,
-    output = False,
-    plot = False
+    # other parameters
+    eps = 1e-8, # used for the bounces to avoid infinite recursion
+    ueps = 1e-3, # used for the bounces to avoid infinite recursion
+    output = False, # if debug information should be printed
+    plot = False # if the throw should be plotted
 ):
     if output:
         print(f'simulate throw: x0 = {x0:.4f}, y0 = {y0:.4f}, vx = {vx:.4f}, vy = {vy:.4f}, r_ball = {r_ball:.4f}, m_ball = {m_ball:.4f}')
@@ -202,15 +202,12 @@ def simulate_throw(
     t_peak = np.sqrt(m_ball / (k*g)) * c
     t_peak = 0 if t_peak < 0 else t_peak
     x_peak = t2x(t_peak)
-    #print(x_peak, t_peak)
+
     # the final solution is composed of the two functions f1 (before peak) and f2 (after peak)
     ft = lambda t: np.where(t < t_peak, f1t(t), f2t(t))
     # transformation to account for vx < 0
     f = lambda x: ft(x2t(sgn * (x - x0)))
-    x_ = np.linspace(0,5,1000)
-    #plt.plot(x_, f1(sgn * (x_ - x0)))
-    #plt.plot(x_, f2(sgn * (x_ - x0)))
-    # derivatives that are needed for the velocity at reflection
+    # derivatives that are needed for the velocity at the bounces
     dy_ = lambda x: np.where(x < x_peak, dy1(x), dy2(x))
     dy = lambda x: dy_(sgn * (x - x0))
     dx = lambda x: sgn * dx_(sgn * (x - x0))
@@ -234,12 +231,10 @@ def simulate_throw(
     x_plane = None
     t1_plane = np.sqrt(m_ball/(g*k))*(np.arccos(np.cos(c)*np.exp((k/m_ball)*(y_lower - y0))) + c)
     t2_plane = np.sqrt(m_ball/(g*k))*(np.arccosh(np.exp(-np.log(np.cos(c))-k/m_ball*(y_lower - y0))) + c)
-    #if output:
-    #    print('x_planes', t2x(t1_plane), t2x(t2_plane))
     if t1_plane is not None and t1_plane >= 0 and vx <= 0:
         x_plane = t2x(t1_plane)
     else:
-        if t2_plane is not None:# and t2_plane >= 0:
+        if t2_plane is not None:
             x_plane = t2x(t2_plane)
         else:
             try:
@@ -298,9 +293,7 @@ def simulate_throw(
             if plot:
                 # plot throw until the ball hits the floor
                 plot_throw(f, x_lower=x0, x_upper=x_floor, line='m-')
-            # plt.show()
             goesover = True
-            # TODO Implement bounce on top of board
         elif y_lower > y_impact_board:
             goesunder = True
         else:  # Cant hit backboard with negative x velocity
@@ -312,7 +305,6 @@ def simulate_throw(
             # recursive call after hitting the backboard
             vy_impact_board = dy(x_board)
             vx_impact_board = dx(x_board)
-            #plt.arrow(x_board-r_ball, y_impact_board, vx_impact_board, vy_impact_board, length_includes_head=True, head_width=0.08, head_length=0.00002)
             r = simulate_throw(g = g, rho = rho, r_ball = r_ball, m_ball = m_ball, cw = cw,
                 x0 = x_board-r_ball, y0 = y_impact_board, vx = -vx_impact_board, vy = vy_impact_board,
                 x_board = x_board, y_lower = y_lower, y_upper = y_upper, d_ring = d_ring,
@@ -335,7 +327,6 @@ def simulate_throw(
 
         # compute velocity at impact
         v = np.array((dx(x_impact), dy(x_impact)))
-        #plt.arrow(x_impact, y_impact, v[0], v[1], length_includes_head=True, head_width=0.08, head_length=0.00002)
 
         # velocity parallel to normed vector e
         v_parallel = np.dot(v, e)*e
@@ -345,7 +336,6 @@ def simulate_throw(
         # move ball away from ring a bit to avoid infinite recursion
         x_impact -= eps*e[0]
 
-        # plot(f, ring, x_board, y_lower, y_upper,x_ring, y_ring, sol, r_ball, y_board, e, v, v_parallel, v_bounced)
         if plot:
             if vx > 0:
                 plot_throw(f, x_upper=x_impact, x_lower=x0)
@@ -366,7 +356,6 @@ def simulate_throw(
                     plot_throw(f, x_lower=x0, x_upper=x_floor, line='m-')
                 else:
                     plot_throw(f, x_upper=x0, x_lower=x_floor, line='m-')
-            # plt.show()
             return x_plane
         elif x_board - r_ball > x_plane > x_ring + r_ball - ueps:  # check for basket
             goesin = True
@@ -377,7 +366,6 @@ def simulate_throw(
                     plot_throw(f, x_upper=x0, x_lower=x_plane, line='g-')
                 else:
                     plot_throw(f, x_lower=x0, x_upper=x_plane, line='g-')
-            # plt.show()
             return x_plane
 
     if np.abs(dy(x_plane)) > 1e3:
@@ -390,10 +378,7 @@ def simulate_throw(
             plot_throw(f, x_lower=x0, x_upper=x_floor, line='m-')
         else:
             plot_throw(f, x_upper=x0, x_lower=x_floor, line='m-')
-    if output:
-        print("wtf happened")
     return 0
-    # raise(Exception('How did we get here'))
 
 
 def check_in_basket(x_plane, x_board=4.525, d_ring=0.45):
@@ -416,12 +401,8 @@ def hit_rate(h, alpha, v0, n=100, output=False, plot=False, conv=False):
     alphas = np.zeros(n)+alpha
     v0s = np.zeros(n)+v0
 
-    #h_samples = [-1,0,1]
-    #alpha_samples = np.linspace(-1,1,5)
     h_rands = hs + 1*np.random.uniform(-1, 1, size=n)*.15
-    #h_rands = hs + 1*np.random.choice(h_samples, size=n)*.15
     alpha_rands = alphas + 1*np.random.uniform(-1, 1, size=n)*5
-    #alpha_rands = alphas + 0*np.random.choice(alpha_samples, size=n)*5
     alpha_rands = np.deg2rad(alpha_rands)
     v0_rands = (1 + 1*np.random.uniform(-1, 1, size=n)*.05)*v0
 
@@ -463,7 +444,7 @@ def plot3d_h_alpha(v0=7):  # fixed v0 for now
     alphas = np.linspace(30, 90, 30)
     n = 100  # number of simulations per combination
     start = timer()
-    for h in hs:  # für zufällige input werte
+    for h in hs:  # for random input values
         rates.append([])
         for alpha in alphas:
             rates[-1].append(hit_rate(h=h, alpha=alpha, v0=v0, n=n, output=False))
@@ -471,7 +452,7 @@ def plot3d_h_alpha(v0=7):  # fixed v0 for now
     end = timer()
     print("Time: ", end-start)
 
-    if len(rates) > 1:  # plotte verschiedene trefferquoten über anzahl der iterationen
+    if len(rates) > 1:  # plot the hit reates vs. number of iterations
         plt.show()
         ax = plt.axes(projection="3d")
         hs, alphas = np.meshgrid(hs, alphas)
@@ -483,10 +464,10 @@ def plot3d_h_alpha(v0=7):  # fixed v0 for now
 
 def plot3d_v0_alpha(h=2.0, n=500):  # fixed h for now
     rates = []
-    v0s = np.linspace(7, 9.5, 15)#np.linspace(8, 9.5, 15)#np.linspace(7.1, 7.8, 15) - 1,2
-    alphas = np.linspace(55, 75, 16)#np.linspace(55, 75, 16)#np.linspace(58, 64, 16)
+    v0s = np.linspace(7, 9.5, 15)
+    alphas = np.linspace(55, 75, 16)
     start = timer()
-    for v0 in v0s:  # für zufällige input werte
+    for v0 in v0s:  # for random input values
         rates.append([])
         for alpha in alphas:
             rates[-1].append(hit_rate(h=h, alpha=alpha, v0=v0, n=n, output=False))
@@ -494,7 +475,7 @@ def plot3d_v0_alpha(h=2.0, n=500):  # fixed h for now
     end = timer()
     print("Time: ", end-start)
 
-    if len(rates) > 1:  # plotte verschiedene trefferquoten über anzahl der iterationen
+    if len(rates) > 1:  # plot the hit reates vs. number of iterations
         plt.show()
         ax = plt.axes(projection="3d")
         hs, alphas = np.meshgrid(v0s, alphas)
@@ -519,7 +500,7 @@ def plot3d_v0_alpha_fine(h=2.0, n=5000):  # fixed h for now
     end = timer()
     print("Time: ", end-start)
 
-    if len(rates) > 1:  # plotte verschiedene trefferquoten über anzahl der iterationen
+    if len(rates) > 1:  # plot the hit reates vs. number of iterations
         plt.show()
         ax = plt.axes(projection="3d")
         hs, alphas = np.meshgrid(v0s, alphas)
@@ -533,8 +514,8 @@ def plot3d_v0_alpha_fine(h=2.0, n=5000):  # fixed h for now
 
 def plot3d_v0_alpha_fine2(h=2.0, n=5000):  # fixed h for now
     rates = []
-    v0s = np.linspace(7.35,7.4,11)#np.linspace(8, 9.5, 15)#np.linspace(7.1, 7.8, 15) - 1,2
-    alphas = np.linspace(60.5,60.7,11)#np.linspace(55, 75, 16)#np.linspace(58, 64, 16)
+    v0s = np.linspace(7.35,7.4,11)
+    alphas = np.linspace(60.5,60.7,11)
     start = timer()
     for v0 in v0s:  # für zufällige input werte
         rates.append([])
@@ -555,6 +536,7 @@ def plot3d_v0_alpha_fine2(h=2.0, n=5000):  # fixed h for now
         ax.set_zlabel('hit rate [-]')
         plt.show()
     print(rates)
+
 
 def korbwurf(
     abweichung_wurfarmhoehe = 0.0,
@@ -584,8 +566,8 @@ def korbwurf(
 
 
 # %%
-if __name__ == '__main__':  # muss rein für multiprocessing
-    freeze_support()  # das anscheinend auch (keine ahnung was das ist)
+if __name__ == '__main__':
+    freeze_support()
     #fig, ax = plt.subplots()
     #h, alpha, v0 = 2.0, 70, 8.591243 #9.224 # 9.2, 8.78
     #rad_alpha = np.deg2rad(alpha)
@@ -594,10 +576,6 @@ if __name__ == '__main__':  # muss rein für multiprocessing
     #ax.set(xlim=(0,5), ylim=(1,5))
     #fig.tight_layout()
     #plt.show()
-    #h, alpha, v0 = 2.0, 60, 7.248
-    #h, alpha, v0 = 2.0, 59.6, 7.38
-    #h, alpha, v0 = 2.0, 61.2, 7.40
-    #h, alpha, v0 = 2.0, 60.6, 7.35
     h, alpha, v0 = 2.0, 60.68, 7.38 # grid search fine2
     h, alpha, v0 = 2.0, 60.1875, 7.312 # noisyopt
     h, alpha, v0 = 2.0, 60.68, 7.37 # grid search fine2 (after bugfix)
@@ -621,40 +599,3 @@ if __name__ == '__main__':  # muss rein für multiprocessing
     #plt.plot(np.arange(1, len(rate_conv2)+1)[1000:], rate_conv2[1000:])
     plt.show()
     exit()
-    np.random.seed(124587)  # 15) # seed 124587 yields error
-    while True:  # für zufällige input werte
-
-        # sammle quoten für verschiedene anzahlen von würfen um zu gucken wie gut wir annähern müssen
-        quoten = []
-        ns = [100, 1000, 10000, 25000, 50000]
-        h = np.random.rand()+1
-        alpha = np.random.randint(45, 75)
-        v0 = (np.random.rand()*5)+5
-        print("h: ", h, "alpha: ", alpha, "v0: ", v0)
-        for n in ns:
-            start = timer()
-            quoten.append(hit_rate(
-                h=h, alpha=alpha, v0=v0, n=n, output=False))
-            if quoten[0] < .1:  # kann gut sein dass die werte ganz scheiße sind, dann neue bevor man da rechenleistung verschwendet
-                break
-            end = timer()
-            print(n, end-start)
-
-        if len(quoten) > 1:  # plotte verschiedene trefferquoten über anzahl der iterationen
-            plt.show()
-            plt.plot(ns, quoten, 'm-')
-            plt.xscale('log')
-            plt.show()
-
-    exit()
-    plt.show()
-
-    # %%
-    # 0.6147413602474181 1.314172781056323 3.239501812265219 6.925294735574873 0.121860690103832
-    # print(simulate_throw(x0 = 0.6147413602474181, y0 = 1.314172781056323, vx = 3.239501812265219, vy = 6.925294735574873, r_ball = 0.121860690103832))
-    # plt.show()
-    # for vx in np.linspace(3.3,4,100):
-    #     print(vx, simulate_throw(vy=7,vx=vx))
-    #     plt.show()
-    # # # %%
-    # plt.show()
