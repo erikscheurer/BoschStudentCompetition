@@ -179,48 +179,56 @@ def simulate_throw(
     #########################################################################
     # 1. Define the analytic solution of the ball throw with air resistance #
     #########################################################################
+
+    # The air resistance force is modeled as Newton friction
+    # and is given by F = 0.5 * cw * r * A * rho * v^2 = k * v^2
     k = 0.5 * cw * r_ball**2 * np.pi * rho
     v0 = np.sqrt(vx**2 + vy**2)
 
-    # the analytic solution is only defined for vx >= 0, for vx < 0 a transformation is used
-    # TODO: proper derivation and documentation
+    # For the derivation of the analytic solution of the initial value problem we followed
+    # https://matheplanet.com/default3.html?call=article.php?sid=735
+    # The analytic solution is only defined for vx >= 0, hence for vx < 0 a transformation is used
     vx_ = np.abs(vx)
     sgn = vx / vx_
     sin_alpha = vy / v0
     cos_alpha = vx_ / v0
+    # For convenience we introduced an auxiliary quantity c
     c = np.arctan(np.sqrt(k/(m_ball*g))*v0*sin_alpha)
+    # mapping from time to x position:
     t2x = lambda t: x0 + sgn * m_ball/k*np.log(k*v0*cos_alpha/m_ball*t + 1)
+    # mapping from x position to time:
     x2t = lambda x: m_ball/(k*v0*cos_alpha)*(np.exp(k/m_ball*x) - 1)
-    f1t = lambda t: y0 + m_ball/k*(np.log(np.cos(np.sqrt(k*g/m_ball)*t - c)) - np.log(np.cos(c)))
-    f2t = lambda t: y0 + m_ball/k*(-np.log(np.cosh(np.sqrt(k*g/m_ball)*t - c)) - np.log(np.cos(c)))
-    dy1 = lambda x: m_ball/k*np.sqrt(k*g/m_ball)*np.tan(c - x2t(x)*np.sqrt(g*k/m_ball))
-    dy2 = lambda x: m_ball/k*np.sqrt(k*g/m_ball)*np.tanh(c - x2t(x)*np.sqrt(g*k/m_ball))
-    dxt_ = lambda t: m_ball*v0*cos_alpha/(k*t*v0*cos_alpha+m_ball)
-    dx_ = lambda x: dxt_(x2t(x))
+    # mapping from time to y position (upward throw):
+    t2y_up = lambda t: y0 + m_ball/k*(np.log(np.cos(np.sqrt(k*g/m_ball)*t - c)) - np.log(np.cos(c)))
+    # mapping from time to y position (downward throw):
+    t2y_down = lambda t: y0 + m_ball/k*(-np.log(np.cosh(np.sqrt(k*g/m_ball)*t - c)) - np.log(np.cos(c)))
 
     # calculate the peak of the ball throw
     t_peak = np.sqrt(m_ball / (k*g)) * c
     t_peak = 0 if t_peak < 0 else t_peak
     x_peak = t2x(t_peak)
 
-    # the final solution is composed of the two functions f1 (before peak) and f2 (after peak)
-    ft = lambda t: np.where(t < t_peak, f1t(t), f2t(t))
-    # transformation to account for vx < 0
+    # The final solution is composed of the two functions t2y_up (before peak) and t2y_down (after peak)
+    ft = lambda t: np.where(t < t_peak, t2y_up(t), t2y_down(t))
+    # Transformation to account for vx < 0
     f = lambda x: ft(x2t(sgn * (x - x0)))
-    # derivatives that are needed for the velocity at the bounces
-    dy_ = lambda x: np.where(x < x_peak, dy1(x), dy2(x))
+    # Derivatives that are needed to compute the velocity at the bounces:
+    dy_up = lambda x: m_ball/k*np.sqrt(k*g/m_ball)*np.tan(c - x2t(x)*np.sqrt(g*k/m_ball))
+    dy_down = lambda x: m_ball/k*np.sqrt(k*g/m_ball)*np.tanh(c - x2t(x)*np.sqrt(g*k/m_ball))
+    dx_ = lambda x: m_ball*v0*cos_alpha/(k*x2t(x)*v0*cos_alpha+m_ball)
+    dy_ = lambda x: np.where(x < x_peak, dy_up(x), dy_down(x))
     dy = lambda x: dy_(sgn * (x - x0))
     dx = lambda x: sgn * dx_(sgn * (x - x0))
     y_peak = f(x_peak)
 
+    #######################################################################
+    # 2. Compute the intersection of the throw with 3.05m plane and floor #
+    #######################################################################
     hitsring = False
     goesover = False
     goesunder = False
     goesin = False
 
-    #######################################################################
-    # 2. Compute the intersection of the throw with 3.05m plane and floor #
-    #######################################################################
     if y_peak < y_lower:
         if output:
             print("The ball is thrown too low")
@@ -378,7 +386,7 @@ def simulate_throw(
             plot_throw(f, x_lower=x0, x_upper=x_floor, line='m-')
         else:
             plot_throw(f, x_upper=x0, x_lower=x_floor, line='m-')
-    return 0
+    return 0  # return 0 instead of x_plane as ball never hits plane
 
 
 def check_in_basket(x_plane, x_board=4.525, d_ring=0.45):
