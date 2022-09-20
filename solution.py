@@ -1,6 +1,7 @@
 # %%
 import os
-from multiprocessing import Pool, freeze_support
+#import multiprocessing
+#from multiprocessing import Pool, freeze_support
 from typing import Callable
 import numpy as np
 import matplotlib.pyplot as plt
@@ -404,35 +405,35 @@ def mapfunc(x0, y0, vx, vy, r_ball, m_ball, output, plot):
 
 
 def hit_rate(h, alpha, v0, n=100, output=False, plot=False, conv=False):
-
     hs = np.zeros(n)+h
     alphas = np.zeros(n)+alpha
     v0s = np.zeros(n)+v0
 
-    h_rands = hs + 1*np.random.uniform(-1, 1, size=n)*.15
-    alpha_rands = alphas + 1*np.random.uniform(-1, 1, size=n)*5
+    h_rands = hs + np.random.uniform(-1, 1, size=n) * 0.15
+    alpha_rands = alphas + np.random.uniform(-1, 1, size=n) * 5
     alpha_rands = np.deg2rad(alpha_rands)
-    v0_rands = (1 + 1*np.random.uniform(-1, 1, size=n)*.05)*v0
+    v0_rands = (1 + np.random.uniform(-1, 1, size=n)*.05) * v0
 
-    x0s = np.cos(alpha_rands)*h_rands
-    y0s = np.sin(alpha_rands)*h_rands
-    vxs = np.cos(alpha_rands)*v0_rands
-    vys = np.sin(alpha_rands)*v0_rands
+    x0s = np.cos(alpha_rands) * h_rands
+    y0s = np.sin(alpha_rands) * h_rands
+    vxs = np.cos(alpha_rands) * v0_rands
+    vys = np.sin(alpha_rands) * v0_rands
 
-    circ_balls = 0.765 + 1*np.random.uniform(-1, 1, size=n)*.015
+    circ_balls = 0.765 + np.random.uniform(-1, 1, size=n) * 0.015
     r_balls = circ_balls / (2*np.pi)
 
-    m_balls = 0.609 + 1*np.random.uniform(-1, 1, size=n)*.015
+    m_balls = 0.609 + np.random.uniform(-1, 1, size=n) * 0.015
 
+    """
     if plot:
         x_planes = np.asarray(list(map(mapfunc, x0s, y0s, vxs, vys, r_balls, m_balls, [output]*n, [plot]*n)))
     else:
-        available_cores = len(os.sched_getaffinity(0))
+        available_cores = 4#multiprocessing.cpu_count()
         with Pool(available_cores) as p:
             x_planes = np.asarray(p.starmap(mapfunc, zip(x0s, y0s, vxs, vys, r_balls, m_balls, [output]*n, [plot]*n)))
-
-    #x_planes = np.asarray(
-    #    list(map(mapfunc, x0s, y0s, vxs, vys, r_balls, m_balls, [output]*n, [plot]*n)))
+    """
+    x_planes = np.asarray(
+        list(map(mapfunc, x0s, y0s, vxs, vys, r_balls, m_balls, [output]*n, [plot]*n)))
 
     in_baskets = check_in_basket(x_planes)
     hits = np.sum(in_baskets)
@@ -575,35 +576,42 @@ def korbwurf(
 
 # %%
 if __name__ == '__main__':
-    freeze_support()
-    #fig, ax = plt.subplots()
-    #h, alpha, v0 = 2.0, 70, 8.591243 #9.224 # 9.2, 8.78
-    #rad_alpha = np.deg2rad(alpha)
-    #simulate_throw(x0=h*np.cos(rad_alpha), y0=h*np.sin(rad_alpha), vx=v0*np.cos(rad_alpha), vy=v0*np.sin(rad_alpha), output=True, plot=True)
-    #ax.set_aspect('equal', 'box')
-    #ax.set(xlim=(0,5), ylim=(1,5))
-    #fig.tight_layout()
-    #plt.show()
-    h, alpha, v0 = 2.0, 60.68, 7.38 # grid search fine2
-    h, alpha, v0 = 2.0, 60.1875, 7.312 # noisyopt
-    h, alpha, v0 = 2.0, 60.68, 7.37 # grid search fine2 (after bugfix)
-    #print(korbwurf(0,0,0,0,ballradius=0.765/(2*np.pi),ballgewicht=0.609))
+    #freeze_support()
+    # Example call of `korbwurf` function:
+    pos = korbwurf(0, 0, 0, 0, ballradius=0.765/(2*np.pi), ballgewicht=0.609)
+    print(pos)
+
+    # Plot the corresponding throw (without uncertainties)
+    h, alpha, v0 = 2.0, 60.68, 7.37 # optimal parameters
+    rad_alpha = np.deg2rad(alpha)
+    fig, ax = plt.subplots()
+    simulate_throw(x0 = h * np.cos(rad_alpha), y0 = h * np.sin(rad_alpha),
+        vx = v0 * np.cos(rad_alpha), vy = v0 * np.sin(rad_alpha),
+        output = False, plot = True
+    )
+    ax.set_aspect('equal', 'box')
+    ax.set(xlim=(0,5), ylim=(1,5))
+    fig.tight_layout()
+    plt.show()
+
+    # Plot 100 throws with uncertainties (using the same configuration)
     fig, ax = plt.subplots()
     print('hit rate for 100 samples:', hit_rate(h, alpha, v0, n=100, output=False, plot=True))
     ax.set_aspect('equal', 'box')
     ax.set(xlim=(0,5), ylim=(1,5))
     fig.tight_layout()
     plt.show()
-    #plot3d_v0_alpha_fine(h=2.0)
-    #plot3d_h_alpha(v0=7.25)
-    #plot3d_v0_alpha_fine2(h=2.0,n=100000)
+    
+    # Calculate the hit rate for a different count of uncertainty samples
+    # This can take a while on slow computers
     print('hit rate for 1000 samples:', hit_rate(h, alpha, v0, n=1000, output=False, plot=False))
     print('hit rate for 10000 samples:', hit_rate(h, alpha, v0, n=10000, output=False, plot=False))
-    rate1, rate_conv1 = hit_rate(h, alpha, v0, n=100000, output=False, plot=False, conv=True)
-    #h, alpha, v0 = 2.0, 60.68, 7.38 # grid search fine2
-    #rate2, rate_conv2 = hit_rate(h, alpha, v0, n=100000, output=False, plot=False, conv=True)
-    print('hit rate for 100000 samples:', rate1)
-    plt.plot(np.arange(1, len(rate_conv1)+1)[1000:], rate_conv1[1000:])
-    #plt.plot(np.arange(1, len(rate_conv2)+1)[1000:], rate_conv2[1000:])
+    # After 100000 samples the hit rate should be converged to ~0.46-0.47
+    rate, rate_conv = hit_rate(h, alpha, v0, n=100000, output=False, plot=False, conv=True)
+    print('hit rate for 100000 samples:', rate)
+    plt.plot(np.arange(1, len(rate_conv)+1)[1000:], rate_conv[1000:])
+    plt.title('Hit rate convergence')
+    plt.xlabel('samples')
+    plt.ylabel('hit rate')
     plt.show()
     exit()
