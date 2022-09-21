@@ -216,8 +216,8 @@ def simulate_throw(
 
     # We have derived the analytical solution of the initial value problem and checked it against
     # a solution by Andreas Lindner (https://www.geogebra.org/m/S4EyHaFa)
-    # The analytical solution is only well-defined for vx >= 0 and x0 = 0, hence forgit 
-    # the general case the affine transformation x -> sgn * (x - x0), vx -> abs(vx) is employed,
+    # The analytical solution is only well-defined for vx >= 0 and x0 = 0, hence for the
+    # general case, the affine transformation x -> sgn * (x - x0), vx -> abs(vx) is employed,
     # where sgn indicates the sign of vx and abs(vx) the absolute value of vx
     sgn = np.sign(vx)
     sin_alpha = vy / v0
