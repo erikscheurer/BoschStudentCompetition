@@ -14,11 +14,16 @@
 #     /
 #   🤖|<--   4.525m   -->|
 
-# The idea is now, that the ball has a radius and is a perfect circle. 
+# The idea is now, that the ball has a certain radius and is assumed to be a perfect circle.
 # We can then calculate the intersection of the ball with the ring and the backboard by just tracking the center of the ball. 
-# Intersection happens by adding a "buffer" of the radius of the ball and bouncing the center of the ball off this buffer.
+# Intersection happens by adding a "buffer" of the radius of the ball and bouncing the center of the ball of this buffer.
 
-# We also incorporate air resistance for a more accurate model.
+# According to the specifications, the ball is modeled as a rigid body without considering angular momentum.
+# In addition, the collisions are assumed to be perfectly elastic and the ideal law of reflection is applied.
+# We also incorporate air resistance based on the drag equation for a more accurate model.
+
+# Multiprocessing is available to parallelise the computation of the average hit rate and can be enabled manually.
+# Please note that the support of multiprocessing depends on the available software and hardware setup.
 
 #####################################################################
 #                            Authors                                #
@@ -32,17 +37,20 @@
 #####################################################################
 
 # At the bottom of the file, some examples are given.
-# You can also import the `korbwurf` function. 
-# `hitrate` computes an average for given parameters.
+# You can also import the `korbwurf` function.
 # `simulate_throw` is the core of the simulation that also enables plotting.
+# `hit_rate` computes the average hit rate for given parameters.
 
 #####################################################################
 #                             Code                                  #
 #####################################################################
 
-#import os
-#import multiprocessing
-#from multiprocessing import Pool, freeze_support
+multi_processing = False
+
+if multi_processing:
+    import multiprocessing
+    from multiprocessing import Pool, freeze_support
+from gc import freeze
 from typing import Callable
 import numpy as np
 import matplotlib.pyplot as plt
@@ -322,9 +330,11 @@ def simulate_throw(
             if plot:
                 # plot throw until the ball hits the backboard
                 plot_throw(f, x_lower=x0, x_upper=x_board-r_ball)
-            # recursive call after hitting the backboard
-            vy_impact_board = dy(x_board)
+            # Calculate horizontal velocity at the backboard
             vx_impact_board = dx(x_board)
+            # Calculate vertical velocity at the backboard
+            vy_impact_board = dy(x_board)
+            # recursive call after hitting the backboard
             r = simulate_throw(g=g, rho=rho, r_ball=r_ball, m_ball=m_ball, cw=cw,
                                x0=x_board-r_ball, y0=y_impact_board, vx=-vx_impact_board, vy=vy_impact_board,
                                x_board=x_board, y_lower=y_lower, y_upper=y_upper, d_ring=d_ring,
@@ -432,14 +442,14 @@ def hit_rate(h, alpha, v0, n=100, output=False, plot=False, conv=False):
 
     m_balls = 0.609 + np.random.uniform(-1, 1, size=n) * 0.015
 
-    """ # multiprocessing (not necessary)
-    if plot:
-        x_planes = np.asarray(list(map(mapfunc, x0s, y0s, vxs, vys, r_balls, m_balls, [output]*n, [plot]*n)))
-    else:
-        available_cores = 4#multiprocessing.cpu_count()
-        with Pool(available_cores) as p:
-            x_planes = np.asarray(p.starmap(mapfunc, zip(x0s, y0s, vxs, vys, r_balls, m_balls, [output]*n, [plot]*n)))
-    """
+    if multi_processing:
+        if plot:
+            x_planes = np.asarray(list(map(mapfunc, x0s, y0s, vxs, vys, r_balls, m_balls, [output]*n, [plot]*n)))
+        else:
+            available_cores = multiprocessing.cpu_count()
+            with Pool(available_cores) as p:
+                x_planes = np.asarray(p.starmap(mapfunc, zip(x0s, y0s, vxs, vys, r_balls, m_balls, [output]*n, [plot]*n)))
+    
     x_planes = np.asarray(
         list(map(mapfunc, x0s, y0s, vxs, vys, r_balls, m_balls, [output]*n, [plot]*n)))
 
@@ -485,6 +495,8 @@ def korbwurf(
 
 # %%
 if __name__ == '__main__':
+    if multi_processing:
+        freeze_support()
 
     # Example call of `korbwurf` function (without uncertainties)
     pos = korbwurf(0, 0, 0, 0, ballradius=0.765/(2*np.pi), ballgewicht=0.609)
