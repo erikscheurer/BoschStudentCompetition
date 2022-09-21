@@ -16,6 +16,8 @@ def same_signs(a, b):
 
 
 def plot_ring():
+    """Plots the ring and the circle around it where the ball bounces off"""
+
     r_ball = 0.765/(2*np.pi)
     x_board = 4.525
     y_board = 3.95
@@ -37,6 +39,7 @@ def plot_ring():
 
 
 def plot_throw(f, x_lower=0, x_upper=5, line='b-'):
+    """Plot a section between bounces with a given function f"""
     plot_ring()
     xx = np.linspace(x_lower, x_upper, 1000)
     yy = f(xx)
@@ -45,37 +48,12 @@ def plot_throw(f, x_lower=0, x_upper=5, line='b-'):
     # plt.ylim(2.7, 4.6)
 
 
-def plot(f, ring, x_board, y_lower, y_upper, x_ring, y_ring, sol, r_ball, y_board, e, v, v_parallel, v_bounced):
-    xx = np.linspace(0, 5, 1000)
-    rr = ring(xx)
-
-    plt.figure(figsize=(5, 5))
-    # backboard
-    y_brett = np.linspace(y_lower, y_upper)
-    brett = plt.plot([x_board]*len(y_brett), y_brett, 'r')
-    brett = plt.plot([x_board-r_ball]*len(y_brett), y_brett, 'r--')
-    plt.plot(x_board-r_ball, y_board, 'rx')
-    # ball
-    plot_throw(f)
-    # ring
-    plt.plot(xx, rr, 'r--')
-    plt.plot(x_ring, y_ring, 'ro', markersize=2)
-    plt.plot(sol.x[0], f(sol.x[0]), 'x', markersize=10)
-
-    plt.ylim(0, 10)
-    plt.xlim(0, 5)
-
-    v = v/np.linalg.norm(v)
-    v_parallel = v_parallel/np.linalg.norm(v_parallel)
-    v_bounced = v_bounced/np.linalg.norm(v_bounced)
-    plt.arrow(sol.x[0], f(sol.x[0]), e[0], e[1])
-    plt.arrow(sol.x[0], f(sol.x[0]), v[0], v[1], color='g')
-    plt.arrow(sol.x[0], f(sol.x[0]), v_parallel[0], v_parallel[1], color='r')
-    plt.arrow(sol.x[0], f(sol.x[0]), v_bounced[0], v_bounced[1], color='b')
-    plt.pause(10000)
-
-
 def get_sign_change_interval(f, a, b, vx, depth=2):
+    """Returns the interval where the sign of f changes. 
+
+    We need this for the Ring Collision. If there is no sign change, at the outer bounds of the interval, there may be no or multiple interceptions with the ring collisionbox.
+    The brentq algorithm only works if there is a sign change in the interval.
+    """
     if vx < 0:  # if we move left, check right first, then left since the ball is coming from the right
         a, b = b, a
 
@@ -104,6 +82,7 @@ def get_sign_change_interval(f, a, b, vx, depth=2):
 
 
 def get_ring_collision(ring_left: float, ring_right: float, objective: Callable[[float], float], vx: float, eps=1e-8, tol=1e-5) -> float:
+    """Returns the x coordinate of the ring collision point """
     ring_left += eps  # for numeric stability
     ring_right -= eps
 
@@ -117,11 +96,13 @@ def get_ring_collision(ring_left: float, ring_right: float, objective: Callable[
 
 
 def throw_under_ring(f, x_ring, y_ring, r_ball, vx, ueps=1e-3):
+    """Checks if the ball is thrown under the ring."""
     y_throw_ring_left = f(x_ring-r_ball)
     return vx > 0 and y_throw_ring_left < y_ring + ueps
 
 
 def check_ring_collision(f, x0, vx, x_ring, y_ring, r_ball, eps=1e-8):
+    """Checks if the ball collides with the ring and return the x coordinate of the collision point"""
     def ring(x):
         assert x > x_ring-r_ball and x < x_ring+r_ball
         return np.sqrt(r_ball**2-(x-x_ring)**2) + y_ring
@@ -147,27 +128,27 @@ def check_ring_collision(f, x0, vx, x_ring, y_ring, r_ball, eps=1e-8):
 
 def simulate_throw(
     # general parameters
-    g = 9.81, # gravity acceleration [m/s^2]
-    rho = 1.204, # density of air [kg/m^3]
+    g=9.81,  # gravity acceleration [m/s^2]
+    rho=1.204,  # density of air [kg/m^3]
     # ball parameters
-    r_ball = 0.765/(2*np.pi), # radius of the ball [m]
-    m_ball = 0.609, # mass of the ball [kg]
-    cw = 0.47, # drag coefficient of a sphere [-]
+    r_ball=0.765/(2*np.pi),  # radius of the ball [m]
+    m_ball=0.609,  # mass of the ball [kg]
+    cw=0.47,  # drag coefficient of a sphere [-]
     # throw parameters
-    x0 = 0, # x coordinate of start point [m]
-    y0 = 2, # y coordinate of start point [m]
-    vx = 2.18, # x component of throwing velocity [m/s]
-    vy = 10, # y component of throwing velocity [m/s]
+    x0=0,  # x coordinate of start point [m]
+    y0=2,  # y coordinate of start point [m]
+    vx=2.18,  # x component of throwing velocity [m/s]
+    vy=10,  # y component of throwing velocity [m/s]
     # board parameters
-    x_board = 4.525, # x coordinate of board position [m]
-    y_lower = 3.05, # y coordinate of board position (bottom) [m]
-    y_upper = 3.95, # y coordinate of board position (top) [m]
-    d_ring = 0.45, # diameter of the ring [m]
+    x_board=4.525,  # x coordinate of board position [m]
+    y_lower=3.05,  # y coordinate of board position (bottom) [m]
+    y_upper=3.95,  # y coordinate of board position (top) [m]
+    d_ring=0.45,  # diameter of the ring [m]
     # other parameters
-    eps = 1e-8, # used for the bounces to avoid infinite recursion
-    ueps = 1e-3, # used for the bounces to avoid infinite recursion
-    output = False, # if debug information should be printed
-    plot = False # if the throw should be plotted
+    eps=1e-8,  # used for the bounces to avoid infinite recursion
+    ueps=1e-3,  # used for the bounces to avoid infinite recursion
+    output=False,  # if debug information should be printed
+    plot=False  # if the throw should be plotted
 ):
     if output:
         print(f'simulate throw: x0 = {x0:.4f}, y0 = {y0:.4f}, vx = {vx:.4f}, vy = {vy:.4f}, r_ball = {r_ball:.4f}, m_ball = {m_ball:.4f}')
@@ -226,7 +207,7 @@ def simulate_throw(
     hitsring = False
     goesover = False
     goesunder = False
-    
+
     # compute intersection points with the 3.05m plane
     x_plane = None
     t1_plane = np.sqrt(m_ball/(g*k))*(np.arccos(np.cos(c)*np.exp((k/m_ball)*(y_lower - y0))) + c)
@@ -257,10 +238,10 @@ def simulate_throw(
     ######################################################################
     # 3. Check for collision of the throw with ring, backboard or basket #
     ######################################################################
-    
-    # check if ball starts in ring area
+
+    # check if ball starts in ring area (for recursive calls after ring collision)
     if not (x_ring - r_ball < x0 < x_ring + r_ball):
-        # if the ball is under the ring, we can't hit anything
+        # if the ball comes down before the ring, we can't hit anything
         if throw_under_ring(f, x_ring, y_ring, r_ball, vx, ueps):
             if output:
                 print("The ball is thrown too low")
@@ -293,18 +274,17 @@ def simulate_throw(
             # recursive call after hitting the backboard
             vy_impact_board = dy(x_board)
             vx_impact_board = dx(x_board)
-            r = simulate_throw(g = g, rho = rho, r_ball = r_ball, m_ball = m_ball, cw = cw,
-                x0 = x_board-r_ball, y0 = y_impact_board, vx = -vx_impact_board, vy = vy_impact_board,
-                x_board = x_board, y_lower = y_lower, y_upper = y_upper, d_ring = d_ring,
-                eps = eps, ueps = ueps, output = output, plot = plot)
+            r = simulate_throw(g=g, rho=rho, r_ball=r_ball, m_ball=m_ball, cw=cw,
+                               x0=x_board-r_ball, y0=y_impact_board, vx=-vx_impact_board, vy=vy_impact_board,
+                               x_board=x_board, y_lower=y_lower, y_upper=y_upper, d_ring=d_ring,
+                               eps=eps, ueps=ueps, output=output, plot=plot)
     if goesover:
         r = x_plane
     if r is not None:  # if ball hits, return result from recursive call, else return x_plane if the ball goes over the backboard
         return r
 
     # interception of the ball with the ring needs to be checked, as ball goes under the backboard or moves left
-    hitsring, x_impact = check_ring_collision(
-        f, x0, vx, x_ring, y_ring, r_ball)
+    hitsring, x_impact = check_ring_collision(f, x0, vx, x_ring, y_ring, r_ball)
     if hitsring:
         if output:
             print('The ball hits the ring')
@@ -330,13 +310,14 @@ def simulate_throw(
             else:
                 plot_throw(f, x_lower=x_impact, x_upper=x0)
         # recursive call after hitting the ring
-        return simulate_throw(g = g, rho = rho, r_ball = r_ball, m_ball = m_ball, cw = cw,
-                x0 = x_impact, y0 = y_impact, vx = v_bounced[0], vy = v_bounced[1],
-                x_board = x_board, y_lower = y_lower, y_upper = y_upper, d_ring = d_ring,
-                eps = eps, ueps = ueps, output = output, plot = plot)
+        return simulate_throw(g=g, rho=rho, r_ball=r_ball, m_ball=m_ball, cw=cw,
+                              x0=x_impact, y0=y_impact, vx=v_bounced[0], vy=v_bounced[1],
+                              x_board=x_board, y_lower=y_lower, y_upper=y_upper, d_ring=d_ring,
+                              eps=eps, ueps=ueps, output=output, plot=plot)
     # else:
     if goesunder or vx < 0:
-        if x_plane < x_ring - r_ball:  # check for airball (i.e. ball hits nothing)
+        # check for airball (i.e. ball hits nothing)
+        if x_plane < x_ring - r_ball:
             if output:
                 print('AIRBALL')
             if plot:
@@ -345,7 +326,7 @@ def simulate_throw(
                 else:
                     plot_throw(f, x_upper=x0, x_lower=x_floor, line='m-')
             return x_plane
-        elif x_board - r_ball > x_plane > x_ring + r_ball - ueps:  # check for basket
+        elif x_board - r_ball > x_plane > x_ring + r_ball - ueps:  # check if ball is in the basket
             goesin = True
             if output:
                 print('The ball goes in')
@@ -365,6 +346,7 @@ def simulate_throw(
 
 
 def check_in_basket(x_plane, x_board=4.525, d_ring=0.45):
+    """Check if the x coordinate at the 3.05m height is in the basket."""
     a = x_board - d_ring < x_plane
     b = x_plane < x_board
     c = np.logical_and(a, b)
@@ -397,7 +379,7 @@ def hit_rate(h, alpha, v0, n=100, output=False, plot=False, conv=False):
 
     m_balls = 0.609 + np.random.uniform(-1, 1, size=n) * 0.015
 
-    """
+    """ # multiprocessing (not necessary)
     if plot:
         x_planes = np.asarray(list(map(mapfunc, x0s, y0s, vxs, vys, r_balls, m_balls, [output]*n, [plot]*n)))
     else:
@@ -420,13 +402,13 @@ def hit_rate(h, alpha, v0, n=100, output=False, plot=False, conv=False):
 
 
 def korbwurf(
-    abweichung_wurfarmhoehe = 0.0,
-    abweichung_abwurfwinkel = 0.0, 
-    abweichung_beschleunigung = 0.0,
-    abweichung_geschwindigkeit = 0.0,
-    ballradius = 0.765/(2*np.pi),
-    ballgewicht = 0.609
-    ):
+    abweichung_wurfarmhoehe=0.0,
+    abweichung_abwurfwinkel=0.0,
+    abweichung_beschleunigung=0.0,
+    abweichung_geschwindigkeit=0.0,
+    ballradius=0.765/(2*np.pi),
+    ballgewicht=0.609
+):
     best_h = 2.0
     best_alpha = 60.68
     best_velocity = 7.37
@@ -435,34 +417,34 @@ def korbwurf(
     v0 = best_velocity + abweichung_geschwindigkeit
     rad_alpha = np.deg2rad(alpha)
     return simulate_throw(
-        r_ball = ballradius,
-        m_ball = ballgewicht,
-        x0 = h * np.cos(rad_alpha),
-        y0 = h * np.sin(rad_alpha),
-        vx = v0 * np.cos(rad_alpha),
-        vy = v0 * np.sin(rad_alpha),
-        output = False,
-        plot = False
+        r_ball=ballradius,
+        m_ball=ballgewicht,
+        x0=h * np.cos(rad_alpha),
+        y0=h * np.sin(rad_alpha),
+        vx=v0 * np.cos(rad_alpha),
+        vy=v0 * np.sin(rad_alpha),
+        output=False,
+        plot=False
     )
 
 
 # %%
 if __name__ == '__main__':
-    #freeze_support()
+
     # Example call of `korbwurf` function (without uncertainties)
     pos = korbwurf(0, 0, 0, 0, ballradius=0.765/(2*np.pi), ballgewicht=0.609)
     print(pos)
 
     # Plot the corresponding throw (without uncertainties)
-    h, alpha, v0 = 2.0, 60.68, 7.37 # optimal parameters
+    h, alpha, v0 = 2.0, 60.68, 7.37  # optimal parameters
     rad_alpha = np.deg2rad(alpha)
     fig, ax = plt.subplots()
-    simulate_throw(x0 = h * np.cos(rad_alpha), y0 = h * np.sin(rad_alpha),
-        vx = v0 * np.cos(rad_alpha), vy = v0 * np.sin(rad_alpha),
-        output = False, plot = True
-    )
+    simulate_throw(x0=h * np.cos(rad_alpha), y0=h * np.sin(rad_alpha),
+                   vx=v0 * np.cos(rad_alpha), vy=v0 * np.sin(rad_alpha),
+                   output=False, plot=True
+                   )
     ax.set_aspect('equal', 'box')
-    ax.set(xlim=(0,5), ylim=(1,5))
+    ax.set(xlim=(0, 5), ylim=(1, 5))
     ax.set_title('Throw with optimal parameters (without uncertainties)')
     fig.tight_layout()
     plt.show()
@@ -471,7 +453,7 @@ if __name__ == '__main__':
     fig, ax = plt.subplots()
     hit_rate(h, alpha, v0, n=1, output=True, plot=True)
     ax.set_aspect('equal', 'box')
-    ax.set(xlim=(0,5), ylim=(1,5))
+    ax.set(xlim=(0, 5), ylim=(1, 5))
     ax.set_title('Throw with optimal parameters (with uncertainties)')
     fig.tight_layout()
     plt.show()
@@ -480,11 +462,11 @@ if __name__ == '__main__':
     fig, ax = plt.subplots()
     print('hit rate for 100 samples:', hit_rate(h, alpha, v0, n=100, output=False, plot=True))
     ax.set_aspect('equal', 'box')
-    ax.set(xlim=(0,5), ylim=(1,5))
+    ax.set(xlim=(0, 5), ylim=(1, 5))
     ax.set_title('100 throws with optimal parameters (with uncertainties)')
     fig.tight_layout()
     plt.show()
-    
+
     # Calculate the hit rate for a different count of uncertainty samples
     print('hit rate for 1000 samples:', hit_rate(h, alpha, v0, n=1000, output=False, plot=False))
     # After 20000 samples the hit rate should be converged to ~0.47
