@@ -205,7 +205,7 @@ def simulate_throw(
     # Calculate the time at which the ball is at the peak
     t_peak = np.sqrt(m_ball / (k*g)) * c
     # Special case in which the ball flies directly downwards:
-    t_peak = 1000 if t_peak < 0 else t_peak
+    t_peak = np.inf if t_peak < 0 else t_peak
 
     # The solution is composed of the two functions t2y_up (before peak) and t2y_down (after peak)
     t2y = lambda t: np.where(t < t_peak, t2y_up(t), t2y_down(t))
