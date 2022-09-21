@@ -164,8 +164,8 @@ def simulate_throw(
     y_upper = 3.95, # y coordinate of board position (top) [m]
     d_ring = 0.45, # diameter of the ring [m]
     # other parameters
-    eps = 0,#1e-8, # used for the bounces to avoid infinite recursion
-    ueps = 0,#1e-3, # used for the bounces to avoid infinite recursion
+    eps = 1e-8, # used for the bounces to avoid infinite recursion
+    ueps = 1e-3, # used for the bounces to avoid infinite recursion
     output = False, # if debug information should be printed
     plot = False # if the throw should be plotted
 ):
@@ -175,17 +175,17 @@ def simulate_throw(
     x_ring = x_board - d_ring
     y_ring = y_lower
 
-    #########################################################################
-    # 1. Define the analytic solution of the ball throw with air resistance #
-    #########################################################################
+    ###########################################################################
+    # 1. Define the analytical solution of the ball throw with air resistance #
+    ###########################################################################
 
-    # The air resistance force is modeled as Newton friction
-    # and is given by F = 0.5 * cw * r * A * rho * v^2 = k * v^2
+    # The air resistance force is modeled based on Newton friction
+    # and is given by F = 0.5 * cw * A * rho * v^2 = k * v^2
     k = 0.5 * cw * r_ball**2 * np.pi * rho
     v0 = np.sqrt(vx**2 + vy**2)
 
-    # For the derivation of the analytic solution of the initial value problem we followed
-    # https://matheplanet.com/default3.html?call=article.php?sid=735
+    # We have derived the analytical solution of the initial value problem and checked it against
+    # a solution by Andreas Lindner (https://www.geogebra.org/m/S4EyHaFa)
     # The analytic solution is only defined for vx >= 0, hence for vx < 0 a transformation is used
     vx_ = np.abs(vx)
     sgn = vx / vx_
@@ -207,9 +207,9 @@ def simulate_throw(
     # Special case in which the ball flies directly downwards:
     t_peak = 1000 if t_peak < 0 else t_peak
 
-    # The final solution is composed of the two functions t2y_up (before peak) and t2y_down (after peak)
+    # The solution is composed of the two functions t2y_up (before peak) and t2y_down (after peak)
     t2y = lambda t: np.where(t < t_peak, t2y_up(t), t2y_down(t))
-    # Transformation to account for vx < 0
+    # Mapping from x position to y position, i.e. the ball throw trajectory
     f = lambda x: t2y(x2t(x))
     # Derivatives that are needed to compute the velocity at the bounces:
     t2dy_up = lambda t: m_ball/k*np.sqrt(k*g/m_ball)*np.tan(c - t*np.sqrt(g*k/m_ball))
@@ -252,14 +252,7 @@ def simulate_throw(
     if t1_floor is not None and t1_floor >= 0 and vx <= 0:
         x_floor = t2x(t1_floor)
     else:
-        if t2_floor is not None:
-            x_floor = t2x(t2_floor)
-        else:
-            try:
-                print('fallback: optimization')
-                x_floor = opt.newton(lambda x: f(x) - y_floor, x0=(x0+3*x_ring)/4)
-            except:
-                x_floor = None
+        x_floor = t2x(t2_floor)
 
     ######################################################################
     # 3. Check for collision of the throw with ring, backboard or basket #
