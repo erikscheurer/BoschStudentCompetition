@@ -1,4 +1,45 @@
-# %%
+
+#####################################################################
+#                          General Idea                             #
+#####################################################################
+
+# We have a robot with arm length h that throws a ball at the angle alpha with a velocity v.:
+#
+#                     |
+#                   🗑️
+#      🏀             
+#     /
+#    /
+#   /
+#  /
+#  |<--   4.525m   -->|
+
+# The Idea is now, that the ball has a radius and is a perfect circle. 
+# We can then calculate the intersection of the ball with the ring and the backboard by just tracking the center of the ball. 
+# Intersection happens by adding a "buffer" of the radius of the ball and bouncing the center of the ball off this buffer.
+
+# We also incorporate air resistance for a more accurate model.
+
+#####################################################################
+#                            Authors                                #
+#####################################################################
+
+# David Gekeler, Erik Scheurer, Julius Herb, Niklas Hornischer
+
+
+#####################################################################
+#                             Usage                                 #
+#####################################################################
+
+# At the bottom of the file, some examples are given.
+# You can also import the `korbwurf` function. 
+# `hitrate` computes an average for given parameters.
+# `simulate_throw` is the core of the simulation that also enables plotting.
+
+#####################################################################
+#                             Code                                  #
+#####################################################################
+
 #import os
 #import multiprocessing
 #from multiprocessing import Pool, freeze_support
@@ -319,7 +360,7 @@ def simulate_throw(
         # check for airball (i.e. ball hits nothing)
         if x_plane < x_ring - r_ball:
             if output:
-                print('AIRBALL')
+                print('The ball hits nothing')
             if plot:
                 if vx > 0:
                     plot_throw(f, x_lower=x0, x_upper=x_floor, line='m-')
@@ -416,7 +457,7 @@ def korbwurf(
     alpha = best_alpha + abweichung_abwurfwinkel
     v0 = best_velocity + abweichung_geschwindigkeit
     rad_alpha = np.deg2rad(alpha)
-    return simulate_throw(
+    return np.array(simulate_throw(
         r_ball=ballradius,
         m_ball=ballgewicht,
         x0=h * np.cos(rad_alpha),
@@ -425,7 +466,7 @@ def korbwurf(
         vy=v0 * np.sin(rad_alpha),
         output=False,
         plot=False
-    )
+    ))
 
 
 # %%
