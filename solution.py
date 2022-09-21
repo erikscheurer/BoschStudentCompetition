@@ -5,14 +5,14 @@
 
 # We have a robot with arm length h that throws a ball at the angle alpha with a velocity v.:
 #
-#                     |
-#                   🗑️
-#      🏀             
+#                        |
+#                      🗑️
+#         🏀             
+#        /
+#       /
+#      /
 #     /
-#    /
-#   /
-#  /
-#  |<--   4.525m   -->|
+#   🤖|<--   4.525m   -->|
 
 # The Idea is now, that the ball has a radius and is a perfect circle. 
 # We can then calculate the intersection of the ball with the ring and the backboard by just tracking the center of the ball. 
@@ -395,6 +395,7 @@ def check_in_basket(x_plane, x_board=4.525, d_ring=0.45):
 
 
 def mapfunc(x0, y0, vx, vy, r_ball, m_ball, output, plot):
+    """Wrapper function for simulate_throw to be used with map."""
     x_plane = simulate_throw(x0=x0, y0=y0, vx=vx, vy=vy, r_ball=r_ball, m_ball=m_ball, output=output, plot=plot)
     if output:
         print('-'*20)
@@ -402,6 +403,7 @@ def mapfunc(x0, y0, vx, vy, r_ball, m_ball, output, plot):
 
 
 def hit_rate(h, alpha, v0, n=100, output=False, plot=False, conv=False):
+    """Compute the hit rate for a given height h, angle alpha and starting velocity v0, by sampling n throws."""
     hs = np.zeros(n) + h
     alphas = np.zeros(n) + alpha
 
@@ -450,14 +452,16 @@ def korbwurf(
     ballradius=0.765/(2*np.pi),
     ballgewicht=0.609
 ):
-    best_h = 2.0
-    best_alpha = 60.68
-    best_velocity = 7.37
+    """Simulate a basketball throw. The deviation of the throw height, the throw angle,
+    the acceleration and the velocity from their respective optimal values can be set."""
+    best_h = 2.0                # optimal throw height
+    best_alpha = 60.68          # optimal throw angle
+    best_velocity = 7.37        # optimal velocity
     h = best_h + abweichung_wurfarmhoehe
-    alpha = best_alpha + abweichung_abwurfwinkel
+    alpha = best_alpha + abweichung_abwurfwinkel    # calculation of parameters with added deviation, as specified in the function arguments
     v0 = best_velocity + abweichung_geschwindigkeit
     rad_alpha = np.deg2rad(alpha)
-    return np.array(simulate_throw(
+    return np.array(simulate_throw( # return the x coordinate of the ball at a height of 3.05m for the given parameters
         r_ball=ballradius,
         m_ball=ballgewicht,
         x0=h * np.cos(rad_alpha),
