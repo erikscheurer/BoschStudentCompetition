@@ -3,7 +3,7 @@
 #                          General Idea                             #
 #####################################################################
 
-# We have a robot with arm length h that throws a ball at the angle alpha with a velocity v.:
+# We have a robot with arm length h that throws a ball at the angle alpha with a velocity v:
 #
 #                        |
 #                      🗑️
@@ -14,7 +14,7 @@
 #     /
 #   🤖|<--   4.525m   -->|
 
-# The Idea is now, that the ball has a radius and is a perfect circle. 
+# The idea is now, that the ball has a radius and is a perfect circle. 
 # We can then calculate the intersection of the ball with the ring and the backboard by just tracking the center of the ball. 
 # Intersection happens by adding a "buffer" of the radius of the ball and bouncing the center of the ball off this buffer.
 
@@ -208,24 +208,27 @@ def simulate_throw(
 
     # We have derived the analytical solution of the initial value problem and checked it against
     # a solution by Andreas Lindner (https://www.geogebra.org/m/S4EyHaFa)
-    # The analytic solution is only defined for vx >= 0, hence for vx < 0 a transformation is used
+    # The analytical solution is only defined for vx >= 0 and x0 = 0, hence for the general case
+    # the affine transformation x -> sgn * (x - x0) is employed, where sgn indicates the sign of vx
     vx_ = np.abs(vx)
-    sgn = vx / vx_
+    sgn = np.sign(vx)
     sin_alpha = vy / v0
     cos_alpha = vx_ / v0
     # Mapping from time to x position (in consideration of the transformation):
-    t2x = lambda t: x0 + sgn*m_ball/k*np.log(k*v0*cos_alpha/m_ball*t + 1)
+    t2x = lambda t: x0 + sgn * m_ball / k * np.log(k * v0 * cos_alpha / m_ball * t + 1)
     # Mapping from x position to time (in consideration of the transformation):
-    x2t = lambda x: m_ball/(k*v0*cos_alpha)*(np.exp(k/m_ball*sgn*(x - x0)) - 1)
-    # For convenience we introduce an auxiliary quantity c
-    c = np.arctan(np.sqrt(k/(m_ball*g))*v0*sin_alpha)
+    x2t = lambda x: m_ball / (k * v0 * cos_alpha) * (np.exp(k / m_ball * sgn * (x - x0)) - 1)
+    # For convenience we introduce some auxiliary quantities
+    v_inf = np.sqrt((m_ball * g) / k)
+    c = np.arctan(sin_alpha * v0 / v_inf)
+    d = np.sqrt((k * g) / m_ball)
     # Mapping from time to y position (upward throw before peak):
-    t2y_up = lambda t: y0 + m_ball/k*(np.log(np.cos(np.sqrt(k*g/m_ball)*t - c)) - np.log(np.cos(c)))
+    t2y_up = lambda t: y0 + m_ball / k * (np.log(np.cos(d * t - c)) - np.log(np.cos(c)))
     # Mapping from time to y position (downward throw after peak):
-    t2y_down = lambda t: y0 + m_ball/k*(-np.log(np.cosh(np.sqrt(k*g/m_ball)*t - c)) - np.log(np.cos(c)))
+    t2y_down = lambda t: y0 + m_ball / k*(-np.log(np.cosh(d * t - c)) - np.log(np.cos(c)))
 
     # Calculate the time at which the ball is at the peak
-    t_peak = np.sqrt(m_ball / (k*g)) * c
+    t_peak = c / d
     # Special case in which the ball flies directly downwards:
     t_peak = np.inf if t_peak < 0 else t_peak
 
@@ -234,11 +237,12 @@ def simulate_throw(
     # Mapping from x position to y position, i.e. the ball throw trajectory
     f = lambda x: t2y(x2t(x))
     # Derivatives that are needed to compute the velocity at the bounces:
-    t2dy_up = lambda t: m_ball/k*np.sqrt(k*g/m_ball)*np.tan(c - t*np.sqrt(g*k/m_ball))
-    t2dy_down = lambda t: m_ball/k*np.sqrt(k*g/m_ball)*np.tanh(c - t*np.sqrt(g*k/m_ball))
-    t2dx = lambda t: m_ball*v0*cos_alpha/(k*t*v0*cos_alpha+m_ball)
+    t2dy_up = lambda t: m_ball / k * d * np.tan(c - d * t)
+    t2dy_down = lambda t: m_ball / k * d * np.tanh(c - d * t)
+    t2dx = lambda t: m_ball * v0 * cos_alpha / (k * t * v0 * cos_alpha + m_ball)
     t2dy = lambda t: np.where(t < t_peak, t2dy_up(t), t2dy_down(t))
     dy = lambda x: t2dy(x2t(x))
+    # We account for the affine transformation by applying the chain rule
     dx = lambda x: sgn * t2dx(x2t(x))
 
     #######################################################################
@@ -249,10 +253,11 @@ def simulate_throw(
     goesover = False
     goesunder = False
 
-    # compute intersection points with the 3.05m plane
+    # Compute intersection points with the 3.05m plane
     x_plane = None
-    t1_plane = np.sqrt(m_ball/(g*k))*(np.arccos(np.cos(c)*np.exp((k/m_ball)*(y_lower - y0))) + c)
-    t2_plane = np.sqrt(m_ball/(g*k))*(np.arccosh(np.exp(-np.log(np.cos(c))-k/m_ball*(y_lower - y0))) + c)
+    # The two intersection points have been calculated analytically
+    t1_plane = (np.arccos(np.cos(c)*np.exp((k/m_ball)*(y_lower - y0))) + c) / d
+    t2_plane = (np.arccosh(np.exp(-np.log(np.cos(c))-k/m_ball*(y_lower - y0))) + c) / d
     if t1_plane is not None and t1_plane >= 0 and vx <= 0:
         x_plane = t2x(t1_plane)
     else:
@@ -269,8 +274,9 @@ def simulate_throw(
     # compute intersection points with the floor
     y_floor = 0.0
     x_floor = None
-    t1_floor = np.sqrt(m_ball/(g*k))*(np.arccos(np.cos(c)*np.exp((k/m_ball)*(y_floor - y0))) + c)
-    t2_floor = np.sqrt(m_ball/(g*k))*(np.arccosh(np.exp(-np.log(np.cos(c))-k/m_ball*(y_floor - y0))) + c)
+    # The two intersection points have been calculated analytically
+    t1_floor = (np.arccos(np.cos(c)*np.exp((k/m_ball)*(y_floor - y0))) + c) / d
+    t2_floor = (np.arccosh(np.exp(-np.log(np.cos(c))-k/m_ball*(y_floor - y0))) + c) / d
     if t1_floor is not None and t1_floor >= 0 and vx <= 0:
         x_floor = t2x(t1_floor)
     else:
