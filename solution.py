@@ -509,11 +509,7 @@ if __name__ == '__main__':
     # Example call of `korbwurf` function (without uncertainties)
     pos = korbwurf(0, 0, 0, 0, ballradius=765/(2*np.pi), ballgewicht=609)
     print(pos)
-    plt.show()
-    # Example call of `korbwurf` function (with prescribed uncertainties)
-    pos = korbwurf(15, 5, 0, 5, ballradius=765/(2*np.pi), ballgewicht=609)
-    print(pos)
-    plt.show()
+
     # Plot the corresponding throw (without uncertainties)
     h, alpha, v0 = 2.0, 60.68, 7.37  # optimal parameters
     rad_alpha = np.deg2rad(alpha)
