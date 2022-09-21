@@ -1,5 +1,5 @@
 # %%
-import os
+#import os
 #import multiprocessing
 #from multiprocessing import Pool, freeze_support
 from typing import Callable
@@ -7,8 +7,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.optimize as opt
 import math
-from timeit import default_timer as timer
-from mpl_toolkits.mplot3d import Axes3D
 np.seterr(all="ignore")
 
 
@@ -151,7 +149,7 @@ def simulate_throw(
     # general parameters
     g = 9.81, # gravity acceleration [m/s^2]
     rho = 1.204, # density of air [kg/m^3]
-    # ball paramaters
+    # ball parameters
     r_ball = 0.765/(2*np.pi), # radius of the ball [m]
     m_ball = 0.609, # mass of the ball [kg]
     cw = 0.47, # drag coefficient of a sphere [-]
@@ -166,8 +164,8 @@ def simulate_throw(
     y_upper = 3.95, # y coordinate of board position (top) [m]
     d_ring = 0.45, # diameter of the ring [m]
     # other parameters
-    eps = 1e-8, # used for the bounces to avoid infinite recursion
-    ueps = 1e-3, # used for the bounces to avoid infinite recursion
+    eps = 0,#1e-8, # used for the bounces to avoid infinite recursion
+    ueps = 0,#1e-3, # used for the bounces to avoid infinite recursion
     output = False, # if debug information should be printed
     plot = False # if the throw should be plotted
 ):
@@ -193,48 +191,41 @@ def simulate_throw(
     sgn = vx / vx_
     sin_alpha = vy / v0
     cos_alpha = vx_ / v0
-    # For convenience we introduced an auxiliary quantity c
+    # Mapping from time to x position (in consideration of the transformation):
+    t2x = lambda t: x0 + sgn*m_ball/k*np.log(k*v0*cos_alpha/m_ball*t + 1)
+    # Mapping from x position to time (in consideration of the transformation):
+    x2t = lambda x: m_ball/(k*v0*cos_alpha)*(np.exp(k/m_ball*sgn*(x - x0)) - 1)
+    # For convenience we introduce an auxiliary quantity c
     c = np.arctan(np.sqrt(k/(m_ball*g))*v0*sin_alpha)
-    # mapping from time to x position:
-    t2x = lambda t: x0 + sgn * m_ball/k*np.log(k*v0*cos_alpha/m_ball*t + 1)
-    # mapping from x position to time:
-    x2t = lambda x: m_ball/(k*v0*cos_alpha)*(np.exp(k/m_ball*x) - 1)
-    # mapping from time to y position (upward throw):
+    # Mapping from time to y position (upward throw before peak):
     t2y_up = lambda t: y0 + m_ball/k*(np.log(np.cos(np.sqrt(k*g/m_ball)*t - c)) - np.log(np.cos(c)))
-    # mapping from time to y position (downward throw):
+    # Mapping from time to y position (downward throw after peak):
     t2y_down = lambda t: y0 + m_ball/k*(-np.log(np.cosh(np.sqrt(k*g/m_ball)*t - c)) - np.log(np.cos(c)))
 
-    # calculate the peak of the ball throw
+    # Calculate the time at which the ball is at the peak
     t_peak = np.sqrt(m_ball / (k*g)) * c
-    t_peak = 0 if t_peak < 0 else t_peak
-    x_peak = t2x(t_peak)
+    # Special case in which the ball flies directly downwards:
+    t_peak = 1000 if t_peak < 0 else t_peak
 
     # The final solution is composed of the two functions t2y_up (before peak) and t2y_down (after peak)
-    ft = lambda t: np.where(t < t_peak, t2y_up(t), t2y_down(t))
+    t2y = lambda t: np.where(t < t_peak, t2y_up(t), t2y_down(t))
     # Transformation to account for vx < 0
-    f = lambda x: ft(x2t(sgn * (x - x0)))
+    f = lambda x: t2y(x2t(x))
     # Derivatives that are needed to compute the velocity at the bounces:
-    dy_up = lambda x: m_ball/k*np.sqrt(k*g/m_ball)*np.tan(c - x2t(x)*np.sqrt(g*k/m_ball))
-    dy_down = lambda x: m_ball/k*np.sqrt(k*g/m_ball)*np.tanh(c - x2t(x)*np.sqrt(g*k/m_ball))
-    dx_ = lambda x: m_ball*v0*cos_alpha/(k*x2t(x)*v0*cos_alpha+m_ball)
-    dy_ = lambda x: np.where(x < x_peak, dy_up(x), dy_down(x))
-    dy = lambda x: dy_(sgn * (x - x0))
-    dx = lambda x: sgn * dx_(sgn * (x - x0))
-    y_peak = f(x_peak)
+    t2dy_up = lambda t: m_ball/k*np.sqrt(k*g/m_ball)*np.tan(c - t*np.sqrt(g*k/m_ball))
+    t2dy_down = lambda t: m_ball/k*np.sqrt(k*g/m_ball)*np.tanh(c - t*np.sqrt(g*k/m_ball))
+    t2dx = lambda t: m_ball*v0*cos_alpha/(k*t*v0*cos_alpha+m_ball)
+    t2dy = lambda t: np.where(t < t_peak, t2dy_up(t), t2dy_down(t))
+    dy = lambda x: t2dy(x2t(x))
+    dx = lambda x: sgn * t2dx(x2t(x))
 
     #######################################################################
     # 2. Compute the intersection of the throw with 3.05m plane and floor #
     #######################################################################
+
     hitsring = False
     goesover = False
     goesunder = False
-    goesin = False
-
-    if y_peak < y_lower:
-        if output:
-            print("The ball is thrown too low")
-            plot_throw(f, x_lower=x0, x_upper=x_floor, line='m-')
-        return 0  # return 0 instead of x_plane as ball never hits plane
     
     # compute intersection points with the 3.05m plane
     x_plane = None
@@ -246,16 +237,12 @@ def simulate_throw(
         if t2_plane is not None:
             x_plane = t2x(t2_plane)
         else:
-            try:
-                print('fallback: optimization')
-                x_plane = opt.newton(lambda x: f(x) - y_lower, x0=(x0+3*x_ring)/4)
-            except:
-                x_plane = None
-                if output:
-                    print("The ball is thrown too low")
-                if plot:
-                    plot_throw(f, x_lower=x0, x_upper=x_floor, line='m-')
-                return 0  # return 0 instead of x_plane as ball never hits plane
+            x_plane = None
+            if output:
+                print("The ball is thrown too low")
+            if plot:
+                plot_throw(f, x_lower=x0, x_upper=x_floor, line='m-')
+            return 0  # return 0 instead of x_plane as ball never hits plane
 
     # compute intersection points with the floor
     y_floor = 0.0
@@ -274,11 +261,10 @@ def simulate_throw(
             except:
                 x_floor = None
 
-    assert x_plane is not None
-
     ######################################################################
     # 3. Check for collision of the throw with ring, backboard or basket #
     ######################################################################
+    
     # check if ball starts in ring area
     if not (x_ring - r_ball < x0 < x_ring + r_ball):
         # if the ball is under the ring, we can't hit anything
@@ -377,11 +363,6 @@ def simulate_throw(
                     plot_throw(f, x_lower=x0, x_upper=x_plane, line='g-')
             return x_plane
 
-    if np.abs(dy(x_plane)) > 1e3:
-        if output:
-            print("fail")
-        return 0  # TODO: figure out how to deal with very steep parabolas
-
     if plot:
         if vx > 0:
             plot_throw(f, x_lower=x0, x_upper=x_floor, line='m-')
@@ -405,14 +386,13 @@ def mapfunc(x0, y0, vx, vy, r_ball, m_ball, output, plot):
 
 
 def hit_rate(h, alpha, v0, n=100, output=False, plot=False, conv=False):
-    hs = np.zeros(n)+h
-    alphas = np.zeros(n)+alpha
-    v0s = np.zeros(n)+v0
+    hs = np.zeros(n) + h
+    alphas = np.zeros(n) + alpha
 
     h_rands = hs + np.random.uniform(-1, 1, size=n) * 0.15
     alpha_rands = alphas + np.random.uniform(-1, 1, size=n) * 5
     alpha_rands = np.deg2rad(alpha_rands)
-    v0_rands = (1 + np.random.uniform(-1, 1, size=n)*.05) * v0
+    v0_rands = (1 + np.random.uniform(-1, 1, size=n) * 0.05) * v0
 
     x0s = np.cos(alpha_rands) * h_rands
     y0s = np.sin(alpha_rands) * h_rands
@@ -437,114 +417,13 @@ def hit_rate(h, alpha, v0, n=100, output=False, plot=False, conv=False):
 
     in_baskets = check_in_basket(x_planes)
     hits = np.sum(in_baskets)
+    hit_rate = hits / n
     rate_convergence = np.cumsum(in_baskets) / np.arange(1, n+1)
 
-    if output:
-        print("hit rate: ", hits/n)
     if conv:
-        return hits/n, rate_convergence
+        return hit_rate, rate_convergence
     else:
-        return hits/n
-
-
-def plot3d_h_alpha(v0=7):  # fixed v0 for now
-    rates = []
-    hs = np.linspace(1, 2, 10)
-    alphas = np.linspace(30, 90, 30)
-    n = 100  # number of simulations per combination
-    start = timer()
-    for h in hs:  # for random input values
-        rates.append([])
-        for alpha in alphas:
-            rates[-1].append(hit_rate(h=h, alpha=alpha, v0=v0, n=n, output=False))
-
-    end = timer()
-    print("Time: ", end-start)
-
-    if len(rates) > 1:  # plot the hit reates vs. number of iterations
-        plt.show()
-        ax = plt.axes(projection="3d")
-        hs, alphas = np.meshgrid(hs, alphas)
-        ax.plot_surface(hs, alphas, np.array(rates).T, cmap='viridis', edgecolor='none')
-        ax.set_xlabel('h [m]')
-        ax.set_ylabel(r'\alpha [°]')
-        ax.set_zlabel('hit rate [-]')
-        plt.show()
-
-def plot3d_v0_alpha(h=2.0, n=500):  # fixed h for now
-    rates = []
-    v0s = np.linspace(7, 9.5, 15)
-    alphas = np.linspace(55, 75, 16)
-    start = timer()
-    for v0 in v0s:  # for random input values
-        rates.append([])
-        for alpha in alphas:
-            rates[-1].append(hit_rate(h=h, alpha=alpha, v0=v0, n=n, output=False))
-
-    end = timer()
-    print("Time: ", end-start)
-
-    if len(rates) > 1:  # plot the hit reates vs. number of iterations
-        plt.show()
-        ax = plt.axes(projection="3d")
-        hs, alphas = np.meshgrid(v0s, alphas)
-        ax.plot_surface(hs, alphas, np.array(rates).T,
-                        cmap='viridis', edgecolor='none')
-        ax.set_xlabel(r'$v_0$ [m/s]')
-        ax.set_ylabel(r'$\alpha$ [°]')
-        ax.set_zlabel('hit rate [-]')
-        plt.show()
-    print(rates)
-
-def plot3d_v0_alpha_fine(h=2.0, n=5000):  # fixed h for now
-    rates = []
-    v0s = np.linspace(7.3,7.5,9)#np.linspace(8, 9.5, 15)#np.linspace(7.1, 7.8, 15) - 1,2
-    alphas = np.linspace(60.5,61.5,11)#np.linspace(55, 75, 16)#np.linspace(58, 64, 16)
-    start = timer()
-    for v0 in v0s:  # für zufällige input werte
-        rates.append([])
-        for alpha in alphas:
-            rates[-1].append(hit_rate(h=h, alpha=alpha, v0=v0, n=n, output=False, plot=False))
-
-    end = timer()
-    print("Time: ", end-start)
-
-    if len(rates) > 1:  # plot the hit reates vs. number of iterations
-        plt.show()
-        ax = plt.axes(projection="3d")
-        hs, alphas = np.meshgrid(v0s, alphas)
-        ax.plot_surface(hs, alphas, np.array(rates).T,
-                        cmap='viridis', edgecolor='none')
-        ax.set_xlabel(r'$v_0$ [m/s]')
-        ax.set_ylabel(r'$\alpha$ [°]')
-        ax.set_zlabel('hit rate [-]')
-        plt.show()
-    print(rates)
-
-def plot3d_v0_alpha_fine2(h=2.0, n=5000):  # fixed h for now
-    rates = []
-    v0s = np.linspace(7.35,7.4,11)
-    alphas = np.linspace(60.5,60.7,11)
-    start = timer()
-    for v0 in v0s:  # für zufällige input werte
-        rates.append([])
-        for alpha in alphas:
-            rates[-1].append(hit_rate(h=h, alpha=alpha, v0=v0, n=n, output=False, plot=False))
-
-    end = timer()
-    print("Time: ", end-start)
-
-    if len(rates) > 1:  # plotte verschiedene trefferquoten über anzahl der iterationen
-        plt.show()
-        ax = plt.axes(projection="3d")
-        hs, alphas = np.meshgrid(v0s, alphas)
-        ax.plot_surface(hs, alphas, np.array(rates).T,
-                        cmap='viridis', edgecolor='none')
-        ax.set_xlabel(r'$v_0$ [m/s]')
-        ax.set_ylabel(r'$\alpha$ [°]')
-        ax.set_zlabel('hit rate [-]')
-        plt.show()
-    print(rates)
+        return hit_rate
 
 
 def korbwurf(
@@ -577,7 +456,7 @@ def korbwurf(
 # %%
 if __name__ == '__main__':
     #freeze_support()
-    # Example call of `korbwurf` function:
+    # Example call of `korbwurf` function (without uncertainties)
     pos = korbwurf(0, 0, 0, 0, ballradius=0.765/(2*np.pi), ballgewicht=0.609)
     print(pos)
 
@@ -591,6 +470,16 @@ if __name__ == '__main__':
     )
     ax.set_aspect('equal', 'box')
     ax.set(xlim=(0,5), ylim=(1,5))
+    ax.set_title('Throw with optimal parameters (without uncertainties)')
+    fig.tight_layout()
+    plt.show()
+
+    # Plot throw with uncertainties (using the same configuration)
+    fig, ax = plt.subplots()
+    hit_rate(h, alpha, v0, n=1, output=True, plot=True)
+    ax.set_aspect('equal', 'box')
+    ax.set(xlim=(0,5), ylim=(1,5))
+    ax.set_title('Throw with optimal parameters (with uncertainties)')
     fig.tight_layout()
     plt.show()
 
@@ -599,17 +488,18 @@ if __name__ == '__main__':
     print('hit rate for 100 samples:', hit_rate(h, alpha, v0, n=100, output=False, plot=True))
     ax.set_aspect('equal', 'box')
     ax.set(xlim=(0,5), ylim=(1,5))
+    ax.set_title('100 throws with optimal parameters (with uncertainties)')
     fig.tight_layout()
     plt.show()
     
     # Calculate the hit rate for a different count of uncertainty samples
-    # This can take a while on slow computers
     print('hit rate for 1000 samples:', hit_rate(h, alpha, v0, n=1000, output=False, plot=False))
-    print('hit rate for 10000 samples:', hit_rate(h, alpha, v0, n=10000, output=False, plot=False))
-    # After 100000 samples the hit rate should be converged to ~0.46-0.47
-    rate, rate_conv = hit_rate(h, alpha, v0, n=100000, output=False, plot=False, conv=True)
-    print('hit rate for 100000 samples:', rate)
-    plt.plot(np.arange(1, len(rate_conv)+1)[1000:], rate_conv[1000:])
+    # After 20000 samples the hit rate should be converged to ~0.47
+    print('Computing the hit rate for 20000 samples')
+    print('This can take a while on slow computers...')
+    rate, rate_conv = hit_rate(h, alpha, v0, n=20000, output=False, plot=False, conv=True)
+    print('hit rate for 20000 samples:', rate)
+    plt.plot(np.arange(1, len(rate_conv)+1)[100:], rate_conv[100:])
     plt.title('Hit rate convergence')
     plt.xlabel('samples')
     plt.ylabel('hit rate')
