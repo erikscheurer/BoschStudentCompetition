@@ -258,7 +258,7 @@ def simulate_throw(
     else:
         if t2_plane is not None:
             x_plane = t2x(t2_plane)
-        else:
+        else: # no intersection with the 3.05m plane is found
             x_plane = None
             if output:
                 print("The ball is thrown too low")
@@ -340,7 +340,7 @@ def simulate_throw(
         # velocity parallel to normed vector e
         v_parallel = np.dot(v, e)*e
         # elastic collision
-        # (Note that this is only an approximation as a real basketball would loose energy here)
+        # (Note that this is only an approximation as a real basketball would lose energy here)
         v_bounced = v - 2*v_parallel
         # move ball away from ring a bit to avoid infinite recursion
         x_impact -= eps*e[0]
