@@ -208,17 +208,17 @@ def simulate_throw(
 
     # We have derived the analytical solution of the initial value problem and checked it against
     # a solution by Andreas Lindner (https://www.geogebra.org/m/S4EyHaFa)
-    # The analytical solution is only defined for vx >= 0 and x0 = 0, hence for the general case
-    # the affine transformation x -> sgn * (x - x0) is employed, where sgn indicates the sign of vx
-    vx_ = np.abs(vx)
+    # The analytical solution is only well-defined for vx >= 0 and x0 = 0, hence forgit 
+    # the general case the affine transformation x -> sgn * (x - x0), vx -> abs(vx) is employed,
+    # where sgn indicates the sign of vx and abs(vx) the absolute value of vx
     sgn = np.sign(vx)
     sin_alpha = vy / v0
-    cos_alpha = vx_ / v0
-    # Mapping from time to x position (in consideration of the transformation):
+    cos_alpha = np.abs(vx) / v0
+    # Mapping from time to x position (in consideration of the affine transformation):
     t2x = lambda t: x0 + sgn * m_ball / k * np.log(k * v0 * cos_alpha / m_ball * t + 1)
-    # Mapping from x position to time (in consideration of the transformation):
+    # Mapping from x position to time (in consideration of the affine transformation):
     x2t = lambda x: m_ball / (k * v0 * cos_alpha) * (np.exp(k / m_ball * sgn * (x - x0)) - 1)
-    # For convenience we introduce some auxiliary quantities
+    # For convenience we introduce some auxiliary quantities:
     v_inf = np.sqrt((m_ball * g) / k)
     c = np.arctan(sin_alpha * v0 / v_inf)
     d = np.sqrt((k * g) / m_ball)
@@ -239,11 +239,15 @@ def simulate_throw(
     # Derivatives that are needed to compute the velocity at the bounces:
     t2dy_up = lambda t: m_ball / k * d * np.tan(c - d * t)
     t2dy_down = lambda t: m_ball / k * d * np.tanh(c - d * t)
+    # Time derivative of the x position, i.e. horizontal velocity
     t2dx = lambda t: m_ball * v0 * cos_alpha / (k * t * v0 * cos_alpha + m_ball)
+    # Time derivative of the y position, i.e. vertical velocity
     t2dy = lambda t: np.where(t < t_peak, t2dy_up(t), t2dy_down(t))
-    dy = lambda x: t2dy(x2t(x))
+    # Horizontal velocity at position x
     # We account for the affine transformation by applying the chain rule
     dx = lambda x: sgn * t2dx(x2t(x))
+    # Vertical velocity at position x
+    dy = lambda x: t2dy(x2t(x))
 
     #######################################################################
     # 2. Compute the intersection of the throw with 3.05m plane and floor #
