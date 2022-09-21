@@ -465,12 +465,12 @@ def hit_rate(h, alpha, v0, n=100, output=False, plot=False, conv=False):
 
 
 def korbwurf(
-    abweichung_wurfarmhoehe=0.0,
-    abweichung_abwurfwinkel=0.0,
-    abweichung_beschleunigung=0.0,
-    abweichung_geschwindigkeit=0.0,
-    ballradius=0.765/(2*np.pi),
-    ballgewicht=609
+    abweichung_wurfarmhoehe=0.0, # cm
+    abweichung_abwurfwinkel=0.0, # Grad
+    abweichung_beschleunigung=0.0, # %
+    abweichung_geschwindigkeit=0.0, # %
+    ballradius=765/(1000*2*np.pi), # mm
+    ballgewicht=609 # g
 ):
     """Simulate a basketball throw. The deviation of the throw height, the throw angle,
     the acceleration and the velocity from their respective optimal values can be set.
@@ -485,13 +485,13 @@ def korbwurf(
     best_h = 2.0                # optimal throw height
     best_alpha = 60.68          # optimal throw angle
     best_velocity = 7.37        # optimal velocity
-    h = best_h + abweichung_wurfarmhoehe/100 # divide because of cm vs m
+    h = best_h + abweichung_wurfarmhoehe/100 # convert cm to m
     alpha = best_alpha + abweichung_abwurfwinkel
     v0 = best_velocity + abweichung_geschwindigkeit/100 * best_velocity # in percent
     rad_alpha = np.deg2rad(alpha)
     return np.array(simulate_throw( # return the x coordinate of the ball at a height of 3.05m for the given parameters
-        r_ball=ballradius,
-        m_ball=ballgewicht/1000,
+        r_ball=ballradius/1000, # convert mm to m
+        m_ball=ballgewicht/1000, # convert g to kg
         x0=h * np.cos(rad_alpha),
         y0=h * np.sin(rad_alpha),
         vx=v0 * np.cos(rad_alpha),
@@ -516,8 +516,7 @@ if __name__ == '__main__':
     fig, ax = plt.subplots()
     simulate_throw(x0=h * np.cos(rad_alpha), y0=h * np.sin(rad_alpha),
                    vx=v0 * np.cos(rad_alpha), vy=v0 * np.sin(rad_alpha),
-                   output=False, plot=True
-                   )
+                   output=False, plot=True)
     ax.set_aspect('equal', 'box')
     ax.set(xlim=(0, 5), ylim=(1, 5))
     ax.set_title('Throw with optimal parameters (without uncertainties)')
