@@ -64,13 +64,9 @@ def same_signs(a, b):
     return (a >= 0) == (b >= 0)
 
 
-def plot_ring(r_ball, x_board, y_board, y_ring):
+def plot_ring(r_ball, x_board, y_board, x_ring, y_ring):
     """Plots the ring and the circle around it where the ball bounces of"""
 
-    x_board = 4.525
-    y_board = 3.95
-    x_ring = x_board-0.45
-    y_ring = 3.05
     plt.xlim(0, 5)
     plt.ylim(0, 8)
     # ring
@@ -88,12 +84,11 @@ def plot_ring(r_ball, x_board, y_board, y_ring):
 
 def plot_throw(f, r_ball, x_board=4.525, y_board=3.95, y_ring=3.05, x_lower=0, x_upper=5, line='b-'):
     """Plot a section between bounces with a given function f"""
-    plot_ring(r_ball, x_board, y_board, y_ring)
+    x_ring = x_board - 0.45
+    plot_ring(r_ball, x_board, y_board, x_ring, y_ring)
     xx = np.linspace(x_lower, x_upper, 1000)
     yy = f(xx)
     plt.plot(xx, yy, line, alpha=0.99, linewidth=1)
-    # plt.xlim(3.8, 4.6)
-    # plt.ylim(2.7, 4.6)
 
 
 def get_sign_change_interval(f, a, b, vx, depth=2):
@@ -489,14 +484,14 @@ def korbwurf(
     v0 = best_velocity + abweichung_geschwindigkeit/100 * best_velocity # in percent
     rad_alpha = np.deg2rad(alpha)
     pos = simulate_throw( # return the x coordinate of the ball at a height of 3.05m for the given parameters
-        r_ball=ballradius/1000, # convert mm to m
-        m_ball=ballgewicht/1000, # convert g to kg
-        x0=h * np.cos(rad_alpha),
-        y0=h * np.sin(rad_alpha),
-        vx=v0 * np.cos(rad_alpha),
-        vy=v0 * np.sin(rad_alpha),
-        output=True,
-        plot=True
+        r_ball = ballradius/1000, # convert mm to m
+        m_ball = ballgewicht/1000, # convert g to kg
+        x0 = h * np.cos(rad_alpha),
+        y0 = h * np.sin(rad_alpha),
+        vx = v0 * np.cos(rad_alpha),
+        vy = v0 * np.sin(rad_alpha),
+        output = False,
+        plot = False
     )
     return np.array([pos])
 
