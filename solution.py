@@ -81,13 +81,13 @@ def plot_ring(r_ball, x_board, y_board, x_ring, y_ring):
              linewidth=1, alpha=0.9, color='orange')
 
 
-def plot_throw(f, r_ball, x_board=4.525, d_ring=0.45, y_board=3.95, y_ring=3.05, x_lower=0, x_upper=5, line='b-'):
+def plot_throw(f, r_ball, x_board=4.525, d_ring=0.45, y_board=3.95, y_ring=3.05, x_lower=0, x_upper=5, line='b-', opac=0.9):
     """Plot a section between bounces with a given function f"""
     x_ring = x_board - d_ring
     plot_ring(r_ball, x_board, y_board, x_ring, y_ring)
     xx = np.linspace(x_lower, x_upper, 1000)
     yy = f(xx)
-    plt.plot(xx, yy, line, alpha=0.9, linewidth=1)
+    plt.plot(xx, yy, line, alpha=opac, linewidth=1)
 
 
 def get_sign_change_interval(f, a, b, vx, depth=2):
@@ -190,7 +190,9 @@ def simulate_throw(
     eps=1e-8,  # used for the bounces to avoid infinite recursion
     ueps=1e-3,  # used for the bounces to avoid infinite recursion
     output=False,  # if debug information should be printed
-    plot=False  # if the throw should be plotted
+    plot=False,  # if the throw should be plotted
+    opac=0.9,  # opacity of the plotted trajectory (until bounce)
+    opac_bounces=0.9  # opacity of the plotted trajectory (bounces)
 ):
     if output:
         print(f'simulate throw: x0 = {x0:.4f}, y0 = {y0:.4f}, vx = {vx:.4f}, vy = {vy:.4f}, r_ball = {r_ball:.4f}, m_ball = {m_ball:.4f}')
@@ -273,7 +275,7 @@ def simulate_throw(
             if output:
                 print("The ball is thrown too low")
             if plot:
-                plot_throw(f, r_ball, x_board, x_ring, y_upper, y_lower, x_lower=x0, x_upper=x_floor, line='m-')
+                plot_throw(f, r_ball, x_board, x_ring, y_upper, y_lower, x_lower=x0, x_upper=x_floor, line='m-', opac=opac)
             return 0  # return 0 instead of x_plane as ball never hits plane
 
     # compute intersection points with the floor
@@ -298,7 +300,7 @@ def simulate_throw(
             if output:
                 print("The ball is thrown too low")
             if plot:
-                plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_lower=x0, x_upper=x_floor, line='m-')
+                plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_lower=x0, x_upper=x_floor, line='m-', opac=opac)
             return x_plane
 
     # check if the ball hits the backboard, goes over it, or goes under it
@@ -313,7 +315,7 @@ def simulate_throw(
                 print('The ball goes over the backboard')
             if plot:
                 # plot throw until the ball hits the floor
-                plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_lower=x0, x_upper=x_floor, line='m-')
+                plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_lower=x0, x_upper=x_floor, line='m-', opac=opac)
             goesover = True
         elif y_lower > y_impact_board:
             goesunder = True
@@ -322,7 +324,7 @@ def simulate_throw(
                 print('The ball hits the backboard')
             if plot:
                 # plot throw until the ball hits the backboard
-                plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_lower=x0, x_upper=x_board-r_ball)
+                plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_lower=x0, x_upper=x_board-r_ball, opac=opac)
             # Calculate horizontal velocity at the backboard
             vx_impact_board = dx(x_board)
             # Calculate vertical velocity at the backboard
@@ -330,8 +332,8 @@ def simulate_throw(
             # recursive call after hitting the backboard
             r = simulate_throw(g=g, rho=rho, r_ball=r_ball, m_ball=m_ball, cw=cw,
                                x0=x_board-r_ball, y0=y_impact_board, vx=-vx_impact_board, vy=vy_impact_board,
-                               x_board=x_board, y_lower=y_lower, y_upper=y_upper, d_ring=d_ring,
-                               eps=eps, ueps=ueps, output=output, plot=plot)
+                               x_board=x_board, y_lower=y_lower, y_upper=y_upper, d_ring=d_ring, eps=eps, ueps=ueps,
+                               output=output, plot=plot, opac=opac_bounces, opac_bounces=opac_bounces)
     if goesover:
         r = x_plane
     if r is not None:  # if ball hits, return result from recursive call, else return x_plane if the ball goes over the backboard
@@ -360,14 +362,14 @@ def simulate_throw(
 
         if plot:
             if vx > 0:
-                plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_upper=x_impact, x_lower=x0)
+                plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_upper=x_impact, x_lower=x0, opac=opac)
             else:
-                plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_lower=x_impact, x_upper=x0)
+                plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_lower=x_impact, x_upper=x0, opac=opac)
         # recursive call after hitting the ring
         return simulate_throw(g=g, rho=rho, r_ball=r_ball, m_ball=m_ball, cw=cw,
                               x0=x_impact, y0=y_impact, vx=v_bounced[0], vy=v_bounced[1],
                               x_board=x_board, y_lower=y_lower, y_upper=y_upper, d_ring=d_ring,
-                              eps=eps, ueps=ueps, output=output, plot=plot)
+                              eps=eps, ueps=ueps, output=output, plot=plot, opac=opac_bounces, opac_bounces=opac_bounces)
     # else:
     if goesunder or vx < 0:
         # check for airball (i.e. ball hits nothing)
@@ -376,9 +378,9 @@ def simulate_throw(
                 print('The ball hits nothing')
             if plot:
                 if vx > 0:
-                    plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_lower=x0, x_upper=x_floor, line='m-')
+                    plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_lower=x0, x_upper=x_floor, line='m-', opac=opac)
                 else:
-                    plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_upper=x0, x_lower=x_floor, line='m-')
+                    plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_upper=x0, x_lower=x_floor, line='m-', opac=opac)
             return x_plane
         elif x_board - r_ball > x_plane > x_ring + r_ball - ueps:  # check if ball is in the basket
             goesin = True
@@ -386,16 +388,16 @@ def simulate_throw(
                 print('The ball goes in')
             if plot:
                 if vx < 0:
-                    plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_upper=x0, x_lower=x_plane, line='g-')
+                    plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_upper=x0, x_lower=x_plane, line='g-', opac=opac)
                 else:
-                    plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_lower=x0, x_upper=x_plane, line='g-')
+                    plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_lower=x0, x_upper=x_plane, line='g-', opac=opac)
             return x_plane
 
     if plot:
         if vx > 0:
-            plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_lower=x0, x_upper=x_floor, line='m-')
+            plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_lower=x0, x_upper=x_floor, line='m-', opac=opac)
         else:
-            plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_upper=x0, x_lower=x_floor, line='m-')
+            plot_throw(f, r_ball, x_board, d_ring, y_upper, y_lower, x_upper=x0, x_lower=x_floor, line='m-', opac=opac)
     return 0  # return 0 instead of x_plane as ball never hits plane
 
 
@@ -407,15 +409,15 @@ def check_in_basket(x_plane, x_board=4.525, d_ring=0.45):
     return c.astype(int)
 
 
-def mapfunc(x0, y0, vx, vy, r_ball, m_ball, output, plot):
+def mapfunc(x0, y0, vx, vy, r_ball, m_ball, output, plot, opac, opac_bounces):
     """Wrapper function for simulate_throw to be used with map."""
-    x_plane = simulate_throw(x0=x0, y0=y0, vx=vx, vy=vy, r_ball=r_ball, m_ball=m_ball, output=output, plot=plot)
+    x_plane = simulate_throw(x0=x0, y0=y0, vx=vx, vy=vy, r_ball=r_ball, m_ball=m_ball, output=output, plot=plot, opac=opac, opac_bounces=opac_bounces)
     if output:
         print('-'*30)
     return x_plane
 
 
-def hit_rate(h, alpha, v0, n=100, output=False, plot=False, conv=False):
+def hit_rate(h, alpha, v0, n=100, output=False, plot=False, conv=False, opac=0.9, opac_bounces=0.2):
     """Compute the hit rate for a given height h, angle alpha and starting velocity v0, by sampling n throws."""
     hs = np.zeros(n) + h
     alphas = np.zeros(n) + alpha
@@ -435,17 +437,13 @@ def hit_rate(h, alpha, v0, n=100, output=False, plot=False, conv=False):
 
     m_balls = 0.609 + np.random.uniform(-1, 1, size=n) * 0.041
 
-    if multi_processing:
-        if plot:
-            x_planes = np.asarray(list(map(mapfunc, x0s, y0s, vxs, vys, r_balls, m_balls, [output]*n, [plot]*n)))
-        else:
-            available_cores = multiprocessing.cpu_count()
-            with Pool(available_cores) as p:
-                x_planes = np.asarray(p.starmap(mapfunc, zip(x0s, y0s, vxs, vys, r_balls, m_balls, [output]*n, [plot]*n)))
-    
-    x_planes = np.asarray(
-        list(map(mapfunc, x0s, y0s, vxs, vys, r_balls, m_balls, [output]*n, [plot]*n)))
-
+    if multi_processing and not plot:
+        available_cores = multiprocessing.cpu_count()
+        with Pool(available_cores) as p:
+            x_planes = np.asarray(p.starmap(mapfunc, zip(x0s, y0s, vxs, vys, r_balls, m_balls, [output]*n, [plot]*n, [opac]*n, [opac_bounces]*n)))
+    else:
+        x_planes = np.asarray(list(map(mapfunc, x0s, y0s, vxs, vys, r_balls, m_balls, [output]*n, [plot]*n, [opac]*n, [opac_bounces]*n)))
+        
     in_baskets = check_in_basket(x_planes)
     hits = np.sum(in_baskets)
     hit_rate = hits / n
@@ -511,7 +509,6 @@ if __name__ == '__main__':
     print('Result of `korbwurf`:', pos)
     print('The ball goes in') if check_in_basket(pos[0]) else print('The ball passes')
     print('-'*30)
-
     # Plot the corresponding throw (without uncertainties)
     h, alpha, v0 = 2.0, 60.68, 7.37  # optimal parameters
     rad_alpha = np.deg2rad(alpha)
