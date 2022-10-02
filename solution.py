@@ -461,7 +461,8 @@ def korbwurf(
     abweichung_beschleunigung=0.0, # %
     abweichung_geschwindigkeit=0.0, # %
     ballradius=765/(2*np.pi), # mm
-    ballgewicht=609 # g
+    ballgewicht=609, # g
+    plot=False
 ):
     """Simulate a basketball throw. The deviation of the throw height, the throw angle,
     the acceleration and the velocity from their respective optimal values can be set.
@@ -491,7 +492,9 @@ def korbwurf(
         vx = v0 * np.cos(rad_alpha),
         vy = v0 * np.sin(rad_alpha),
         output = False,
-        plot = False
+        plot = plot,
+        opac = 1.0,
+        opac_bounces = .2
     )
     # return only the x position:
     return np.array([pos])
@@ -503,6 +506,31 @@ def korbwurf(
 if __name__ == '__main__':
     if multi_processing:
         freeze_support()
+
+    # 100 korbwürfe mit zufälliger Abweichung von 1% der optimalen Werte
+    fig, ax = plt.subplots(figsize=(5, 5))
+    for i in range(100):
+        korbwurf(
+            # abweichung_wurfarmhoehe = np.random.uniform(-1, 1) * 15,
+            # abweichung_abwurfwinkel = np.random.uniform(-1, 1) * 5,
+            # abweichung_beschleunigung = np.random.uniform(-1, 1) * 5,
+            # abweichung_geschwindigkeit = np.random.uniform(-1, 1) * 5,
+            ballradius = 765/(2*np.pi) + np.random.uniform(-1, 1) * 0.015,
+            ballgewicht = 609,# + np.random.uniform(-1, 1) * 0.041,
+            plot=True
+        )
+    ax.set_aspect('equal', 'box')
+    ax.set(xlim=(0, 5), ylim=(1, 5))
+    # ax.set_title('Height h=2m varying by 15cm')
+    # ax.set_title('Angle $\\alpha$=60.68° varying by 5°')
+    # ax.set_title('Acceleration a varying by 5%')
+    # ax.set_title('Velocity $v_0$=7.37m/s varying by 5%')
+    ax.set_title('Ball radius varying by 15cm')
+    # ax.set_title('Ball weight varying by 410g')
+    fig.tight_layout()
+    # plt.show()
+    plt.savefig('varyingRadius.png', bbox_inches='tight')
+    exit()
 
     # Example call of `korbwurf` function (without uncertainties)
     pos = korbwurf(0, 0, 0, 0, ballradius=765/(2*np.pi), ballgewicht=609)
