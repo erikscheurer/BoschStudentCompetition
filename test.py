@@ -5,7 +5,7 @@ from numpy import loadtxt
 import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties
 
-def vectorfield(xi, t, p):
+def ode(xi, t, p):
     """
     Defines the ODE system for the ball throw with air resistance
 
@@ -22,8 +22,29 @@ def vectorfield(xi, t, p):
     # Create f = (x',y',vx',vy'):
     f = [vx,
          vy,
-         -k/m*vx*np.sqrt(vx**2+vy**2),
+         -k/m*vx-k/m*vx*np.sqrt(vx**2+vy**2),
          -g-k/m*vy*np.sqrt(vx**2+vy**2)]
+    return f
+
+def ode_decoupled(xi, t, p):
+    """
+    Defines the decoupled ODE system for the ball throw with air resistance
+
+    Arguments:
+        xi :  vector of the state variables:
+                  xi = [x,y,vx,vy]
+        t :  time
+        p :  vector of the parameters:
+                  p = [k,g,m]
+    """
+    x, y, vx, vy = xi
+    k, g, m = p
+    t_peak = np.sqrt(k/(m*g))
+    # Create f = (x',y',vx',vy'):
+    f = [vx,
+         vy,
+         -k/m*vx**2,
+         np.where(vy > 0,-g-k/m*vy**2,-g+k/m*vy**2)]
     return f
 
 # general parameters
@@ -118,11 +139,16 @@ p = [k, g, m_ball]
 w0 = [x0, y0, vx, vy]
 
 # Call the ODE solver.
-wsol = odeint(vectorfield, w0, t, args=(p,),
+ode_sol = odeint(ode, w0, t, args=(p,),
               atol=abserr, rtol=relerr)
-wsol = np.array(wsol)
-x = wsol[:,0]
-y = wsol[:,1]
+ode_sol = np.array(ode_sol)
+x = ode_sol[:,0]
+y = ode_sol[:,1]
+oded_sol = odeint(ode_decoupled, w0, t, args=(p,),
+              atol=abserr, rtol=relerr)
+oded_sol = np.array(oded_sol)
+xd = oded_sol[:,0]
+yd = oded_sol[:,1]
 plt.figure(1, figsize=(6, 4.5))
 
 plt.xlabel('x')
@@ -134,10 +160,12 @@ lw = 1
 #plt.plot(t, t2x(t), linewidth=lw)
 #plt.plot(t, y, 'b', linewidth=lw)
 #plt.plot(t, t2y(t), linewidth=lw)
-plt.plot(x, y, 'b', linewidth=lw)
+plt.plot(x, y, linewidth=lw)
+plt.plot(xd, yd, linewidth=lw)
 plt.plot(x, f(x), linewidth=lw)
 plt.plot(x, fp(x), linewidth=lw)
+plt.plot(x, oded_sol[:,3], linewidth=lw)
 
-plt.legend((r'with air resistance (exact)', r'with air resistance (approx.)', r'without air resistance'))
+plt.legend((r'with air resistance (RK)', r'with air resistance (decoupled, RK)', r'with air resistance (decoupled, analytic)', r'without air resistance', 'vy'))
 plt.title('Ball throw with air resistance')
 plt.show()
