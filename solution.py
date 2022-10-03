@@ -7,7 +7,7 @@
 #
 #                        |
 #                      🗑️
-#         🏀             
+#         🏀
 #        /
 #       /
 #      /
@@ -45,7 +45,7 @@
 #                             Code                                  #
 #####################################################################
 #%%
-multi_processing = False
+multi_processing = True
 
 if multi_processing:
     import multiprocessing
@@ -53,13 +53,14 @@ if multi_processing:
 from typing import Callable
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import scipy.optimize as opt
 import math
 np.seterr(all="ignore")
 
 
 def same_signs(a, b):
-    assert not math.isnan(a) and not math.isnan(b)
+    #assert not math.isnan(a) and not math.isnan(b)
     return (a >= 0) == (b >= 0)
 
 
@@ -510,19 +511,21 @@ if __name__ == '__main__':
     # Surface plot of a fixed height h=2m and varying angle alpha and velocity v0
     N = 50
     h = 2.0
-    alpha = np.linspace(50, 80, N)
-    v0 = np.linspace(5, 10, N)
+    alpha_min, alpha_max = 50, 80
+    alpha = np.linspace(alpha_min, alpha_max, N)
+    v0_min, v0_max = 5, 10
+    v0 = np.linspace(v0_min, v0_max, N)
     X, Y = np.meshgrid(alpha, v0)
     Z = np.zeros_like(X)
     for i in range(len(alpha)):
         for j in range(len(v0)):
-            Z[i, j] = hit_rate(h, alpha[i], v0[j], n=500, output=False, plot=False)
+            Z[i, j] = hit_rate(h, alpha[i], v0[j], n=100, output=False, plot=False)
             print(f'alpha={alpha[i]:.2f}, v0={v0[j]:.2f}, hit_rate={Z[i, j]:.2f}')
     #%% 3d surface plot
     import matplotlib.cm as cm
     from matplotlib.ticker import FormatStrFormatter
     fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-    surf = ax.plot_surface(X, Y, Z, linewidth=0, antialiased=False, cmap=cm.coolwarm)
+    surf = ax.plot_surface(X, Y, Z, linewidth=0, antialiased=False, cmap=cm.Reds)
     ax.set_xlabel('$\\alpha$')
     ax.set_ylabel('$v_0$')
     ax.set_zlabel('Hit rate')
@@ -533,15 +536,10 @@ if __name__ == '__main__':
 
     #%% now heat map of the same data
     fig, ax = plt.subplots()#figsize=(10, 10))
-    im = ax.imshow(Z, cmap=cm.coolwarm)
+    im = ax.imshow(Z, cmap=cm.Reds, extent=([alpha_min, alpha_max, v0_min, v0_max]), aspect='auto')
     ax.set_xlabel('$\\alpha$')
     ax.set_ylabel('$v_0$')
     ax.set_title('Heat map of hit rate for fixed height h=2m')
-    # correct the ticks and only show 10 ticks
-    ax.set_xticks(np.linspace(0, N-1, 10))
-    ax.set_xticklabels(np.round(np.linspace(50, 80, 10)).astype(int))
-    ax.set_yticks(np.linspace(0, N-1, 10))
-    ax.set_yticklabels(np.round(np.linspace(5, 10, 10)).astype(int))
     
     fig.colorbar(im, aspect=10)
     plt.savefig('heat_map.png', dpi=300)
