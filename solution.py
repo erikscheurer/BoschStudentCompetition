@@ -502,12 +502,40 @@ def korbwurf(
     # if the (x,y)-position should be returned, use the following line:
     #return np.array([pos, 3.05])
 
+def plot3d_v0_alpha(h=2.0, n=500):  # fixed h for now
+    rates = []
+    v0_min, v0_max = 6.0, 10
+    v0s = np.linspace(v0_min, v0_max, 20)
+    alpha_min, alpha_max = 45, 85
+    alphas = np.linspace(alpha_min, alpha_max, 20)
+    for v0 in v0s:  # for random input values
+        rates.append([])
+        for alpha in alphas:
+            rates[-1].append(hit_rate(h=h, alpha=alpha, v0=v0, n=n, output=False))
+
+    if len(rates) > 1:  # plot the hit reates vs. number of iterations
+        plt.show()
+        ax = plt.axes(projection="3d")
+        hs, alphas = np.meshgrid(v0s, alphas)
+        ax.plot_surface(hs, alphas, np.array(rates).T,
+                        cmap='Reds', edgecolor='none')
+        ax.set_xlabel(r'$v_0$ [m/s]')
+        ax.set_ylabel(r'$\alpha$ [°]')
+        ax.set_zlabel('hit rate [-]')
+        plt.show()
+        fig, ax = plt.subplots()
+        im = ax.imshow(np.array(rates).T, cmap='Reds', extent=([alpha_min, alpha_max, v0_min, v0_max]), aspect='auto', origin='lower')
+        ax.set_ylabel(r'$v_0$ [m/s]')
+        ax.set_xlabel(r'$\alpha$ [°]')
+        plt.show()
+    print(rates)
+
 
 # %%
 if __name__ == '__main__':
     if multi_processing:
         freeze_support()
-
+    plot3d_v0_alpha(n=500)
     # Surface plot of a fixed height h=2m and varying angle alpha and velocity v0
     N = 50
     h = 2.0
@@ -536,7 +564,7 @@ if __name__ == '__main__':
 
     #%% now heat map of the same data
     fig, ax = plt.subplots()#figsize=(10, 10))
-    im = ax.imshow(Z, cmap=cm.Reds, extent=([alpha_min, alpha_max, v0_min, v0_max]), aspect='auto')
+    im = ax.imshow(Z, cmap=cm.Reds, extent=([alpha_max, alpha_min, v0_min, v0_max]), aspect='auto', origin='lower')
     ax.set_xlabel('$\\alpha$')
     ax.set_ylabel('$v_0$')
     ax.set_title('Heat map of hit rate for fixed height h=2m')
