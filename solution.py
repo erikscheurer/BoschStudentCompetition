@@ -45,7 +45,7 @@
 #                             Code                                  #
 #####################################################################
 #%%
-multi_processing = True
+multi_processing = False
 
 if multi_processing:
     import multiprocessing
@@ -504,10 +504,11 @@ def korbwurf(
 
 def plot3d_v0_alpha(h=2.0, n=500):  # fixed h for now
     rates = []
+    N = 50
     v0_min, v0_max = 6.0, 10
-    v0s = np.linspace(v0_min, v0_max, 20)
+    v0s = np.linspace(v0_min, v0_max, N)
     alpha_min, alpha_max = 45, 85
-    alphas = np.linspace(alpha_min, alpha_max, 20)
+    alphas = np.linspace(alpha_min, alpha_max, N)
     for v0 in v0s:  # for random input values
         rates.append([])
         for alpha in alphas:
@@ -516,15 +517,15 @@ def plot3d_v0_alpha(h=2.0, n=500):  # fixed h for now
     if len(rates) > 1:  # plot the hit reates vs. number of iterations
         plt.show()
         ax = plt.axes(projection="3d")
-        hs, alphas = np.meshgrid(v0s, alphas)
-        ax.plot_surface(hs, alphas, np.array(rates).T,
+        v0s, alphas = np.meshgrid(v0s, alphas)
+        ax.plot_surface(alphas, v0s, np.array(rates).T,
                         cmap='Reds', edgecolor='none')
-        ax.set_xlabel(r'$v_0$ [m/s]')
-        ax.set_ylabel(r'$\alpha$ [°]')
+        ax.set_ylabel(r'$v_0$ [m/s]')
+        ax.set_xlabel(r'$\alpha$ [°]')
         ax.set_zlabel('hit rate [-]')
         plt.show()
         fig, ax = plt.subplots()
-        im = ax.imshow(np.array(rates).T, cmap='Reds', extent=([alpha_min, alpha_max, v0_min, v0_max]), aspect='auto', origin='lower')
+        im = ax.imshow(np.array(rates), cmap='Reds', extent=([alpha_min, alpha_max, v0_min, v0_max]), aspect='auto', origin='lower')
         ax.set_ylabel(r'$v_0$ [m/s]')
         ax.set_xlabel(r'$\alpha$ [°]')
         plt.show()
@@ -535,7 +536,8 @@ def plot3d_v0_alpha(h=2.0, n=500):  # fixed h for now
 if __name__ == '__main__':
     if multi_processing:
         freeze_support()
-    plot3d_v0_alpha(n=500)
+    print(hit_rate(h=2.0, alpha=85.0, v0=9.0, n=1000, output=False, plot=False))
+    plot3d_v0_alpha(n=100)
     # Surface plot of a fixed height h=2m and varying angle alpha and velocity v0
     N = 50
     h = 2.0

@@ -4,6 +4,8 @@ import numpy as np
 from numpy import loadtxt
 import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties
+import timeit
+from timeit import default_timer as timer
 
 def ode(xi, t, p):
     """
@@ -126,6 +128,8 @@ def dfp(x): return 2*pa*x + pb
 # ODE solver parameters
 abserr = 1.0e-16
 relerr = 1.0e-12
+abserr = 1.0e-4
+relerr = 1.0e-2
 stoptime = 1.5
 numpoints = 1000
 
@@ -139,8 +143,12 @@ p = [k, g, m_ball]
 w0 = [x0, y0, vx, vy]
 
 # Call the ODE solver.
-ode_sol = odeint(ode, w0, t, args=(p,),
-              atol=abserr, rtol=relerr)
+#print(timeit.repeat(lambda: odeint(ode, w0, t, args=(p,), atol=abserr, rtol=relerr)), number=1)
+start = timer()
+for _ in range(10000):
+    ode_sol = odeint(ode, w0, t, args=(p,))#, atol=abserr, rtol=relerr)
+print(timer() - start)
+
 ode_sol = np.array(ode_sol)
 x = ode_sol[:,0]
 y = ode_sol[:,1]
@@ -155,6 +163,11 @@ plt.xlabel('x')
 plt.ylabel('y')
 plt.grid(True)
 lw = 1
+
+start = timer()
+for _ in range(10000):
+    f(x)
+print(timer() - start)
 
 #plt.plot(t, x, 'b', linewidth=lw)
 #plt.plot(t, t2x(t), linewidth=lw)
