@@ -8,9 +8,12 @@ Numpy, Scipy
 
 # Files
 
-solution.py contains our basketball throwing simulation, along with the monte carlo estimation code.
+solution.py:
+Contains our basketball throwing simulation, along with the monte carlo estimation code.
 
-test.py contains a comparison of the different possible air resistance solutions
+test.py:
+Contains a comparison of the different possible air resistance solutions
 
-optimization.py contains the code for the grid search we used to find the optimum, along with another optimization method from the noisyopt package,
+optimization.py:
+Contains the code for the grid search we used to find the optimum, along with another optimization method from the noisyopt package,
 which we did not end up using.
