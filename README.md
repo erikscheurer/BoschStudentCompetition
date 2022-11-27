@@ -22,6 +22,7 @@ Contains the code for the grid search we used to find the optimum, along with an
 
 We have a robot with arm length $h$ that throws a ball at the angle alpha with a velocity $v$:
 
+<img src="https://user-images.githubusercontent.com/84399192/204150058-08498ff0-1fe9-4ba0-b1b0-4ad7d5e4ba4d.png" width="450" />
 
  The idea is now, that the ball has a certain radius and is assumed to be a perfect circle.
  We can then calculate the intersection of the ball with the ring and the backboard by just tracking the center of the ball. 
@@ -56,9 +57,11 @@ We get the following optimal parameters:
 | **Hit Rate** | $0.47$ |
 
 The following plot shows one throw with the optimal parameters:
+
 <img src="https://user-images.githubusercontent.com/84399192/204149306-0d7695e8-adab-4431-90ad-128d9c966ac5.png" width="450"/>
 
 Including uncertainties, we see different colors for each segment of the throw. Green means, the ball goes in the hoop, blue means, it bounces of the ring or the backboard. Magenta means, the ball is out of bounds.
+
 <img src="https://user-images.githubusercontent.com/84399192/204149304-04ad94b3-690a-4060-8b5e-a5acda075d4a.png"  width="450"/>
 
 # Optimization
