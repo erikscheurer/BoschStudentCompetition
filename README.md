@@ -1,23 +1,28 @@
-Repository for the Bosch Basketball Students Competition 2022
-von David Gekeler, Erik Scheurer und Julius Herb.
+# Maths Meets Industry Student Competition 2022
 
-# Requirements
-Numpy, Scipy, Matplotlib
+The student competition was part of the ["Maths meets Industry" workshop](https://www.simtech.uni-stuttgart.de/events/workshops/mmi/) that took place in October 2022 at the University of Stuttgart and was organized by the [Cluster of Excellence SimTech](https://www.simtech.uni-stuttgart.de/) and Robert Bosch GmbH. See the [problem definition](https://www.simtech.uni-stuttgart.de/documents/Events/Studentenwettbewerb_RoboterKorbwurf.pdf) for more details.
 
-# Overview
+Team: David Gekeler, Erik Scheurer and Julius Herb
 
-[`solution.py`](solution.py):
+## Requirements
+- NumPy
+- SciPy
+- Matplotlib
+
+## Overview
+
+- [`solution.py`](solution.py):
 Contains our basketball throwing simulation, along with the monte carlo estimation code.
 
-[`test.py`](test.py):
+- [`test.py`](test.py):
 Contains a comparison of the different possible air resistance solutions
 
-[`optimization.py`](optimization.py):
+- [`optimization.py`](optimization.py):
 Contains the code for the grid search we used to find the optimum, along with another optimization method from the noisyopt package, which we did not end up using.
 
 
 
-# Problem Statement and Idea
+## Problem Statement and Idea
 
 
 We have a robot with arm length $h$ that throws a ball at the angle alpha with a velocity $v$:
@@ -36,7 +41,7 @@ We have a robot with arm length $h$ that throws a ball at the angle alpha with a
  Please note that the support of multiprocessing depends on the available software and hardware setup.
 
 
-# Usage                                 
+## Usage                                 
 
 
 At the bottom [`solution.py`](solution.py), some example runs are given.
@@ -46,8 +51,8 @@ You can also import the `korbwurf` function.
 
 The examples at the bottom of the file are also used to create the following plots
 
-# Results
-We get the following optimal parameters:
+## Results
+We obtained the following optimal parameters:
 
 | Parameter | Value |
 | --- | --- |
@@ -64,12 +69,12 @@ Including uncertainties, we see different colors for each segment of the throw. 
 
 <img src="https://user-images.githubusercontent.com/84399192/204149304-04ad94b3-690a-4060-8b5e-a5acda075d4a.png"  width="450"/>
 
-# Optimization
+## Optimization
 
 The following plot shows the optimization landscape:
 
 <img src="https://user-images.githubusercontent.com/84399192/204149307-e56f6711-ce26-4fd2-897c-cbc92ba1c69f.png" width="450"/>
 
-Convergence can be seen in the following plot:
+The convergence of the hit rate in the Monte Carlo simulation can be seen in the following plot:
 
 <img src="https://user-images.githubusercontent.com/84399192/204149309-fdc59d5c-3430-4e4c-a960-602a06e105e4.png" width="450"/>
