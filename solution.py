@@ -538,75 +538,15 @@ def plot3d_v0_alpha(h=2.0, n=500):  # fixed h for now
 if __name__ == '__main__':
     if multi_processing:
         freeze_support()
-    print(hit_rate(h=2.0, alpha=85.0, v0=9.0, n=1000, output=False, plot=False))
-    plot3d_v0_alpha(n=100)
-    # Surface plot of a fixed height h=2m and varying angle alpha and velocity v0
-    N = 50
-    h = 2.0
-    alpha_min, alpha_max = 50, 80
-    alpha = np.linspace(alpha_min, alpha_max, N)
-    v0_min, v0_max = 5, 10
-    v0 = np.linspace(v0_min, v0_max, N)
-    X, Y = np.meshgrid(alpha, v0)
-    Z = np.zeros_like(X)
-    for i in range(len(alpha)):
-        for j in range(len(v0)):
-            Z[i, j] = hit_rate(h, alpha[i], v0[j], n=100, output=False, plot=False)
-            print(f'alpha={alpha[i]:.2f}, v0={v0[j]:.2f}, hit_rate={Z[i, j]:.2f}')
-    #%% 3d surface plot
-    import matplotlib.cm as cm
-    from matplotlib.ticker import FormatStrFormatter
-    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-    surf = ax.plot_surface(X, Y, Z, linewidth=0, antialiased=False, cmap=cm.Reds)
-    ax.set_xlabel('$\\alpha$')
-    ax.set_ylabel('$v_0$')
-    ax.set_zlabel('Hit rate')
-    ax.set_title('Surface plot of hit rate for fixed height h=2m')
-    fig.colorbar(surf, shrink=0.5, aspect=5)
-    plt.savefig('surface_plot.png', dpi=300)
-    # exit()
-
-    #%% now heat map of the same data
-    fig, ax = plt.subplots()#figsize=(10, 10))
-    im = ax.imshow(Z, cmap=cm.Reds, extent=([alpha_max, alpha_min, v0_min, v0_max]), aspect='auto', origin='lower')
-    ax.set_xlabel('$\\alpha$')
-    ax.set_ylabel('$v_0$')
-    ax.set_title('Heat map of hit rate for fixed height h=2m')
     
-    fig.colorbar(im, aspect=10)
-    plt.savefig('heat_map.png', dpi=300)
-    # exit()
-    #%%
-    # 100 korbwürfe mit zufälliger Abweichung von 1% der optimalen Werte
-    fig, ax = plt.subplots(figsize=(5, 5))
-    for i in range(100):
-        korbwurf(
-            # abweichung_wurfarmhoehe = np.random.uniform(-1, 1) * 15,
-            # abweichung_abwurfwinkel = np.random.uniform(-1, 1) * 5,
-            # abweichung_beschleunigung = np.random.uniform(-1, 1) * 5,
-            # abweichung_geschwindigkeit = np.random.uniform(-1, 1) * 5,
-            ballradius = 765/(2*np.pi) ,#+ np.random.uniform(-1, 1) * 0.015,
-            ballgewicht = 609 + np.random.uniform(-1, 1) * 0.041,
-            plot=True
-        )
-    ax.set_aspect('equal', 'box')
-    ax.set(xlim=(0, 5), ylim=(1, 5))
-    # ax.set_title('Height h=2m varying by 15cm')
-    # ax.set_title('Angle $\\alpha$=60.68° varying by 5°')
-    # ax.set_title('Acceleration a varying by 5%')
-    # ax.set_title('Velocity $v_0$=7.37m/s varying by 5%')
-    # ax.set_title('Ball radius varying by 15mm')
-    ax.set_title('Ball weight varying by 41g')
-    fig.tight_layout()
-    # plt.show()
-    plt.savefig('varyingM.png', bbox_inches='tight')
     #%%
     # Example call of `korbwurf` function (without uncertainties)
     pos = korbwurf(0, 0, 0, 0, ballradius=765/(2*np.pi), ballgewicht=609)
     print('Result of `korbwurf`:', pos)
     print('The ball goes in') if check_in_basket(pos[0]) else print('The ball passes')
     print('-'*30)
-    # Plot the corresponding throw (without uncertainties)
+
+    #%% Plot the corresponding throw (without uncertainties)
     h, alpha, v0 = 2.0, 60.68, 7.37  # optimal parameters
     rad_alpha = np.deg2rad(alpha)
     fig, ax = plt.subplots()
@@ -620,7 +560,7 @@ if __name__ == '__main__':
     plt.savefig('optimal.png', bbox_inches='tight')
     plt.show()
 
-    # Plot throw with uncertainties (using the same configuration)
+    #%% Plot throw with uncertainties (using the same configuration)
     fig, ax = plt.subplots()
     hit_rate(h, alpha, v0, n=1, output=True, plot=True)
     ax.set_aspect('equal', 'box')
@@ -630,7 +570,7 @@ if __name__ == '__main__':
     plt.savefig('optimal_uncertainties.png', bbox_inches='tight')
     plt.show()
 
-    # Plot 100 throws with uncertainties (using the same configuration)
+    #%% Plot 100 throws with uncertainties (using the same configuration)
     fig, ax = plt.subplots()
     print('hit rate for 100 samples:', hit_rate(h, alpha, v0, n=100, output=False, plot=True))
     ax.set_aspect('equal', 'box')
@@ -640,7 +580,7 @@ if __name__ == '__main__':
     plt.savefig('optimal_uncertainties_100.png', bbox_inches='tight')
     plt.show()
 
-    # Calculate the hit rate for a different count of uncertainty samples
+    #%% Calculate the hit rate for a different count of uncertainty samples
     print('hit rate for 1000 samples:', hit_rate(h, alpha, v0, n=1000, output=False, plot=False))
     # After 20000 samples the hit rate should be converged to ~0.47
     print('Computing the hit rate for 20000 samples')
@@ -652,5 +592,70 @@ if __name__ == '__main__':
     plt.xlabel('samples')
     plt.ylabel('hit rate')
     plt.savefig('convergence.png', bbox_inches='tight')
+    plt.show()
+
+    #%% Surface plot of a fixed height h=2m and varying angle alpha and velocity v0
+    samples = 100
+    N = 50
+    h = 2.0
+    alpha_min, alpha_max = 50, 80
+    alpha = np.linspace(alpha_min, alpha_max, N)
+    v0_min, v0_max = 5, 10
+    v0 = np.linspace(v0_min, v0_max, N)
+    X, Y = np.meshgrid(alpha, v0)
+    Z = np.zeros_like(X)
+    print(f'Perform grid search for {samples} samples')
+    print('This can take a while on slow computers...')
+    for i in range(len(alpha)):
+        for j in range(len(v0)):
+            Z[i, j] = hit_rate(h, alpha[i], v0[j], n=samples, output=False, plot=False)
+            #print(f'alpha={alpha[i]:.2f}, v0={v0[j]:.2f}, hit_rate={Z[i, j]:.2f}')
+
+    #%% 3d surface plot
+    import matplotlib.cm as cm
+    from matplotlib.ticker import FormatStrFormatter
+    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+    surf = ax.plot_surface(X, Y, Z, linewidth=0, antialiased=False, cmap=cm.Reds)
+    ax.set_xlabel('$\\alpha$')
+    ax.set_ylabel('$v_0$')
+    ax.set_zlabel('Hit rate')
+    ax.set_title('Surface plot of hit rate for fixed height h=2m')
+    fig.colorbar(surf, shrink=0.5, aspect=5)
+    plt.savefig('surface_plot.png', dpi=300)
+    plt.show()
+
+    #%% now heat map of the same data
+    fig, ax = plt.subplots()#figsize=(10, 10))
+    im = ax.imshow(Z, cmap=cm.Reds, extent=([alpha_max, alpha_min, v0_min, v0_max]), aspect='auto', origin='lower')
+    ax.set_xlabel('$\\alpha$')
+    ax.set_ylabel('$v_0$')
+    ax.set_title('Heat map of hit rate for fixed height h=2m')
+    
+    fig.colorbar(im, aspect=10)
+    plt.savefig('heat_map.png', dpi=300)
+    plt.show()
+    
+    #%% 100 korbwürfe mit zufälliger Abweichung von 1% der optimalen Werte
+    fig, ax = plt.subplots(figsize=(5, 5))
+    for i in range(100):
+        korbwurf(
+            abweichung_wurfarmhoehe = np.random.uniform(-1, 1) * 15,
+            # abweichung_abwurfwinkel = np.random.uniform(-1, 1) * 5,
+            # abweichung_beschleunigung = np.random.uniform(-1, 1) * 5,
+            # abweichung_geschwindigkeit = np.random.uniform(-1, 1) * 5,
+            ballradius = 765/(2*np.pi) ,#+ np.random.uniform(-1, 1) * 0.015,
+            ballgewicht = 609,# + np.random.uniform(-1, 1) * 0.041,
+            plot=True
+        )
+    ax.set_aspect('equal', 'box')
+    ax.set(xlim=(0, 5), ylim=(1, 5))
+    ax.set_title('Height h=2m varying by 15cm')
+    # ax.set_title('Angle $\\alpha$=60.68° varying by 5°')
+    # ax.set_title('Acceleration a varying by 5%')
+    # ax.set_title('Velocity $v_0$=7.37m/s varying by 5%')
+    # ax.set_title('Ball radius varying by 15mm')
+    # ax.set_title('Ball weight varying by 41g')
+    fig.tight_layout()
+    plt.savefig('varying_h.png', bbox_inches='tight')
     plt.show()
     exit()
