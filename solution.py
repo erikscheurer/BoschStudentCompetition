@@ -1,3 +1,50 @@
+#####################################################################
+#                          General Idea                             #
+#####################################################################
+
+# We have a robot with arm length h that throws a ball at the angle alpha with a velocity v:
+#
+#                        |
+#                      🗑️
+#         🏀
+#        /
+#       /
+#      /
+#     /
+#   🤖|<--   4.525m   -->|
+
+# The idea is now, that the ball has a certain radius and is assumed to be a perfect circle.
+# We can then calculate the intersection of the ball with the ring and the backboard by just tracking the center of the ball. 
+# Intersection happens by adding a "buffer" of the radius of the ball and bouncing the center of the ball of this buffer.
+
+# According to the specifications, the ball is modeled as a rigid body without considering angular momentum.
+# In addition, the collisions are assumed to be perfectly elastic and the ideal law of reflection is applied.
+# We also incorporate air resistance based on the drag equation for a more accurate model.
+
+# Multiprocessing is available to parallelise the computation of the average hit rate and can be enabled manually.
+# Please note that the support of multiprocessing depends on the available software and hardware setup.
+
+
+#####################################################################
+#                            Authors                                #
+#####################################################################
+
+# David Gekeler, Erik Scheurer and Julius Herb
+
+
+#####################################################################
+#                             Usage                                 #
+#####################################################################
+
+# At the bottom of the file, some examples are given.
+# You can also import the `korbwurf` function.
+# `simulate_throw` is the core of the simulation that also enables plotting.
+# `hit_rate` computes the average hit rate for given parameters.
+
+
+#####################################################################
+#                             Code                                  #
+#####################################################################
 
 #%%
 multi_processing = False
