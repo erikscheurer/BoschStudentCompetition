@@ -44,8 +44,8 @@ Please note that the support of multiprocessing depends on the available softwar
 ## Usage                                 
 
 
-At the bottom [`solution.py`](solution.py), some example runs are given.
-You can also import the `korbwurf` function.
+At the bottom of [`solution.py`](solution.py), some examples are given.
+You can also import the `korbwurf` function, which was specified in the problem statement.
 
 `simulate_throw` is the core of the simulation that also enables plotting.
 
