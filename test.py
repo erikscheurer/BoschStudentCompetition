@@ -1,4 +1,3 @@
-# Use ODEINT to solve the differential equations defined by the vector field
 from scipy.integrate import odeint
 import numpy as np
 from numpy import loadtxt
@@ -50,20 +49,21 @@ def ode_decoupled(xi, t, p):
     return f
 
 # general parameters
-g=9.81  # gravity acceleration [m/s^2]
-rho=1.204 # 1.2  # density of air [kg/m^3]
+g = 9.81    # gravity acceleration [m/s^2]
+rho = 1.204 # density of air [kg/m^3]
+
 # ball parameters
-r_ball=0.765/(2*np.pi)  #0.2 radius of the ball [m]
-m_ball=0.609  #0.5 mass of the ball [kg]
-cw=0.47  # 0.5drag coefficient of a sphere [-]
+r_ball = 0.765/(2*np.pi) # radius of the ball [m]
+m_ball = 0.609           # mass of the ball [kg]
+cw = 0.47                # drag coefficient of a sphere [-]
 
 # Initial conditions
-alpha = 60.68#60
-v0 = 7.37#10
-x0=0  # x coordinate of start point [m]
-y0=2  # y coordinate of start point [m]
-vx=v0*np.cos(np.deg2rad(alpha))  # x component of throwing velocity [m/s]
-vy=v0*np.sin(np.deg2rad(alpha))  # y component of throwing velocity [m/s]
+alpha = 60.68
+v0 = 7.37
+x0 = 0  # x coordinate of start point [m]
+y0 = 2  # y coordinate of start point [m]
+vx = v0*np.cos(np.deg2rad(alpha))  # x component of throwing velocity [m/s]
+vy = v0*np.sin(np.deg2rad(alpha))  # y component of throwing velocity [m/s]
 
 ###########################################################################
 # 1. Define the analytical solution of the ball throw with air resistance #
@@ -128,14 +128,10 @@ def dfp(x): return 2*pa*x + pb
 # ODE solver parameters
 abserr = 1.0e-16
 relerr = 1.0e-12
-abserr = 1.0e-4
-relerr = 1.0e-2
 stoptime = 1.5
 numpoints = 1000
 
-# Create the time samples for the output of the ODE solver.
-# I use a large number of points, only because I want to make
-# a plot of the solution that looks nice.
+# Create the time samples for the output of the ODE solver
 t = np.array([stoptime * float(i) / (numpoints - 1) for i in range(numpoints)])
 
 # Pack up the parameters and initial conditions:
@@ -144,10 +140,7 @@ w0 = [x0, y0, vx, vy]
 
 # Call the ODE solver.
 #print(timeit.repeat(lambda: odeint(ode, w0, t, args=(p,), atol=abserr, rtol=relerr)), number=1)
-start = timer()
-for _ in range(10000):
-    ode_sol = odeint(ode, w0, t, args=(p,))#, atol=abserr, rtol=relerr)
-print(timer() - start)
+ode_sol = odeint(ode, w0, t, args=(p,), atol=abserr, rtol=relerr)
 
 ode_sol = np.array(ode_sol)
 x = ode_sol[:,0]
@@ -164,21 +157,11 @@ plt.ylabel('y')
 plt.grid(True)
 lw = 1
 
-start = timer()
-for _ in range(10000):
-    f(x)
-print(timer() - start)
-
-#plt.plot(t, x, 'b', linewidth=lw)
-#plt.plot(t, t2x(t), linewidth=lw)
-#plt.plot(t, y, 'b', linewidth=lw)
-#plt.plot(t, t2y(t), linewidth=lw)
 plt.plot(x, y, linewidth=lw)
-plt.plot(xd, yd, linewidth=lw)
+#plt.plot(xd, yd, linewidth=lw)
 plt.plot(x, f(x), linewidth=lw)
 plt.plot(x, fp(x), linewidth=lw)
-plt.plot(x, oded_sol[:,3], linewidth=lw)
 
-plt.legend((r'with air resistance (RK)', r'with air resistance (decoupled, RK)', r'with air resistance (decoupled, analytic)', r'without air resistance', 'vy'))
+plt.legend((r'with air resistance (Runge Kutta)', r'with air resistance (decoupled, analytic)', r'without air resistance'))
 plt.title('Ball throw with air resistance')
 plt.show()
